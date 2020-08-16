@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "migrate-core",
+    "xtask",
+]
+
+[profile.release.package.xtask]
+opt-level = 0
