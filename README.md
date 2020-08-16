@@ -1,7 +1,7 @@
 [`east`]: https://github.com/okv/east
 
-# :warn: Warning
-The crate is in an +early stage of development. Code snippets bellow don't work,
+# :warning: Warning
+The crate is in an early stage of development. Code snippets bellow don't work,
 they are just the scratch of the desired API.
 
 # migrate
@@ -49,7 +49,7 @@ impl Migration for MyMigration {
 }
 
 #[tokio::main]
-fn main() {
+async fn main() {
     // This needs more design effort...
     let app = MigrateApp::new::<StateStorage>(
         vec![MyMigration],
