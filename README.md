@@ -24,9 +24,9 @@ Example boilerplate
 
 ```rust
 use async_trait::async_trait;
-// See the list of ready-to-use clients bellow, we are happy to expand the it!
+// See the list of ready-to-use contexts bellow, we are happy to expand it!
 use migrate_dynamodb::{Context, StateStorage};
-use migrate::{Up, Down, MigrateApp};
+use migrate::{Migration, MigrateApp};
 use std::error::Error;
 
 type Result<T, E> = std::result::Result<T, Box<dyn Error>>;
@@ -57,6 +57,10 @@ async fn main() {
     app.run_cli().await.unwrap();
 }
 ```
+
+## Ready-to-use migration contexts
+
+- DynamoDb: `migrate_dynamodb` (yet to be implemented...)
 
 ## Locking
 
