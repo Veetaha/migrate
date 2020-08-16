@@ -15,5 +15,5 @@ pico-args = "0.3.4"
 anyhow = "1.0"
 once_cell = "1.4"
 # FIXME: switch to regular crates.io registry once these crates are published
-devx-cmd = { git = "https://github.com/elastio/devx-cmd" }
-devx-pre-commit = { git = "https://github.com/elastio/devx-pre-commit" }
+devx-cmd = { git = "https://github.com/elastio/devx" }
+devx-pre-commit = { git = "https://github.com/elastio/devx" }
