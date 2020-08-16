@@ -49,7 +49,7 @@ impl Migration for MyMigration {
 }
 
 #[tokio::main]
-fn main() {
+async fn main() {
     // This needs more design effort...
     let app = MigrateApp::new::<StateStorage>(
         vec![MyMigration],
