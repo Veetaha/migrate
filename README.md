@@ -65,7 +65,7 @@ async fn main() {
 ## Locking
 
 `migrate` should support state locking to prevent data races (concurrent migrations).
-This features is not implemented yet, but planned for 1.0 release...
+This feature is not implemented yet, but planned for 1.0 release...
 
 ## New migration bootstrapping
 
