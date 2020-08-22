@@ -1,0 +1,19 @@
+[package]
+# TODO: bikeshed naming
+name = "migrate-file-state-stor"
+version = "0.1.0"
+authors = ["Veetaha <veetaha2@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.38"
+anyhow = "1.0"
+tokio = { version = "0.2.22", features = ["full"] }
+# FIXME: use published crate when this is merged (or maintain a fork if the author doesn't respond...)
+# https://github.com/topecongiro/advisory-lock-rs/pull/3
+advisory-lock = { git = "https://github.com/Veetaha/advisory-lock-rs", branch = "master" }
+
+migrate-core = { version = "0.1.0", path = "../migrate-core" }
+migrate-state = { version = "0.1.0", path = "../migrate-state" }
