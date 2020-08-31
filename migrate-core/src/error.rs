@@ -1,38 +1,35 @@
-use std::fmt;
+use thiserror::Error;
 
 pub type MigrateResult<T> = std::result::Result<T, MigrateError>;
-pub(crate) type AnyError = Box<dyn std::error::Error>;
+pub(crate) type AnyError = Box<dyn std::error::Error + Send + Sync>;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum MigrateError {
+    #[error(
+        "provided migration scripts do not reflect \
+        the applied migrations stack stored in the persistent state"
+    )]
+    #[non_exhaustive]
     InconsistentMigrationScripts,
-    MigrationScript(AnyError),
-    StateCorruption(AnyError),
-    StateLock(AnyError),
-    StateFetch(AnyError),
-    StateUnlock(AnyError),
-}
 
-impl std::error::Error for MigrateError {}
+    #[error("migration script failed")]
+    #[non_exhaustive]
+    MigrationScript { source: AnyError },
 
-impl fmt::Display for MigrateError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MigrateError::InconsistentMigrationScripts => f.write_str(
-                "Provided migration scripts do not reflect \
-                    the applied migrations stack stored in the persistent state",
-            ),
-            MigrateError::MigrationScript(err) => write!(f, "Migration script failed: {}", err),
-            MigrateError::StateCorruption(err) => {
-                write!(f, "Migration state is corrupted: {}", err)
-            }
-            MigrateError::StateLock(err) => {
-                write!(f, "Failed to acquire migration state lock: {}", err)
-            }
-            MigrateError::StateFetch(err) => write!(f, "Failed to fetch migrations: {}", err),
-            MigrateError::StateUnlock(err) => {
-                write!(f, "Failed to release migration state lock: {}", err)
-            }
-        }
-    }
+    #[error("migration state is corrupted")]
+    #[non_exhaustive]
+    StateCorruption { source: AnyError },
+
+    #[error("failed to acquire migration state lock")]
+    #[non_exhaustive]
+    StateLock { source: AnyError },
+
+    #[error("failed to fetch migrations")]
+    #[non_exhaustive]
+    StateFetch { source: AnyError },
+
+    #[error("failed to release migration state lock")]
+    #[non_exhaustive]
+    StateUnlock { source: AnyError },
 }

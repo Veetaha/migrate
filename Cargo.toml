@@ -3,7 +3,7 @@ members = [
     "migrate",
     "migrate-core",
     "migrate-state",
-    "migrate-file-state-stor",
+    "migrate-file-state",
     "xtask",
 ]
 

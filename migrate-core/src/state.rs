@@ -19,7 +19,7 @@ impl State {
 
     pub(crate) fn decode(bytes: &[u8]) -> MigrateResult<Self> {
         match serde_json::from_slice(bytes)
-            .map_err(|err| MigrateError::StateCorruption(err.into()))?
+            .map_err(|err| MigrateError::StateCorruption { source: err.into() })?
         {
             StateRoot::V1(state) => Ok(state),
             // Once we have new versions of state we have to transform them
@@ -34,11 +34,11 @@ impl State {
 /// migration states created by old versions of our library.
 ///
 /// Once we make breaking changes to the state shape we have to copy,
-/// and paste the it here, creating a new version for the latest one.
+/// and paste them here, creating a new version for the latest one.
 ///
 /// As for now we have defined only a single version, thus we don't have code
-/// for migrating migration states of old versions to newer ones. Let's hope
-/// we never need to do this :D
+/// for migrating migration states of old versions to newer ones. Let's see
+/// how long this lasts...
 #[derive(Serialize, Deserialize)]
 enum StateRoot {
     V1(State),

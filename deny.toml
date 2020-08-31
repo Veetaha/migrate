@@ -10,7 +10,7 @@ ignore = []
 [bans]
 multiple-versions = "deny"
 skip = [
-    # { version = "=0.42.0", name = "crate_name_here" },
+    # { version = "=0.2.1", name = "mio" },
 ]
 skip-tree = [
     # { version = "=0.42.0", name = "crate_name_here", depth = 6 },
@@ -30,7 +30,10 @@ private = { ignore = true }
 
 # Run `cargo deny list` to see which crates use which license
 # and add them to this array if you accept them
-allow = ["MIT", "Apache-2.0"]
+allow = [
+    "MIT",
+    "Apache-2.0",
+]
 deny = []
 default = "deny"
 allow-osi-fsf-free = "neither"

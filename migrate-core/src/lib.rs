@@ -7,11 +7,9 @@ mod state;
 pub use error::*;
 
 use async_trait::async_trait;
-use diff::MigrationsDiff;
-use itertools::{EitherOrBoth, Itertools};
 use migrate_state::StateLock;
-use state::{MigrationMeta, State};
-use tracing::{info, instrument};
+use state::State;
+use tracing::instrument;
 
 #[async_trait(?Send)]
 pub trait Migration {
@@ -95,14 +93,34 @@ impl<'a> MigrateCoreCtx {
             .state_lock
             .lock()
             .await
-            .map_err(MigrateError::StateLock)?;
+            .map_err(|source| MigrateError::StateLock { source })?;
+        let state_client = state_guard.client();
 
         let state = State::decode(
-            &state_guard
+            &state_client
                 .fetch()
                 .await
-                .map_err(MigrateError::StateFetch)?,
+                .map_err(|source| MigrateError::StateFetch { source })?,
         )?;
+
+        let diff = diff::diff(&mut self.migrations, &state.applied_migrations)?;
+
+        eprintln!("Applying migrations up...");
+
+        for migration in diff.pending {
+            migration
+                .migration
+                .up(&mut self.ctx_registry)
+                .await
+                // TODO: record the migration as `tainted` (this is concept taken from `terraform`) if it fails,
+                // or handle it somehow else?
+                .map_err(|source| MigrateError::MigrationScript { source })?;
+        }
+
+        state_guard
+            .unlock()
+            .await
+            .map_err(|source| MigrateError::StateUnlock { source })?;
 
         Ok(())
     }
@@ -112,44 +130,12 @@ impl<'a> MigrateCoreCtx {
     }
 }
 
-// /**
-//  * Adapter determines where executed migration names will be stored and what will be
-//  * passed to `migrate` and `rollback` function as a parameter.
-//  */
-//  export interface Adapter<P = unknown> {
-//     /**
-//      * Returns the client that is passed as a parameter to `migrate()` and `rollback()`.
-//      */
-//     connect(): Promise<P>;
+enum Plan {
+    Up(Option<MigrationBound>),
+    Down(Option<MigrationBound>),
+}
 
-//     /**
-//      * Releases the resources (if any) allocated by the adapter internally.
-//      */
-//     disconnect(): Promise<void>;
-
-//     /**
-//      * Returns an absolute path to the template that is used by `east create <migration-name>`
-//      * If adapter supports multiple languages it should check for the extension
-//      * name and return the path to the appropriate template for the given
-//      * file extension, otherwise an error should be thrown.
-//      *
-//      * @param sourceMigrationExtension defines the file extension for the created
-//      * migration without the leading dot (e.g. 'js', 'ts', etc.)
-//      */
-//     getTemplatePath(sourceMigrationExtension: string): string;
-
-//     /**
-//      * Returns the entire list of all executed migration names.
-//      */
-//     getExecutedMigrationNames(): Promise<string[]>;
-
-//     /**
-//      * Marks the migration under `migrationName` as executed in the backing migration state storage.
-//      */
-//     markExecuted(migrationName: string): Promise<void>;
-
-//     /**
-//      * Unmarks migration under `migrationName` as executed in the backing migration state storage.
-//      */
-//     unmarkExecuted(migrationName: string): Promise<void>;
-// }
+enum MigrationBound {
+    Inclusive(String),
+    Exclusive(String),
+}
