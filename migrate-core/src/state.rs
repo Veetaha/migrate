@@ -1,4 +1,4 @@
-use crate::{MigrateError, MigrateResult};
+use crate::PlanBuildError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,9 +17,9 @@ impl State {
         serde_json::to_vec(self).unwrap()
     }
 
-    pub(crate) fn decode(bytes: &[u8]) -> MigrateResult<Self> {
+    pub(crate) fn decode(bytes: &[u8]) -> Result<Self, PlanBuildError> {
         match serde_json::from_slice(bytes)
-            .map_err(|err| MigrateError::StateCorruption { source: err.into() })?
+            .map_err(|err| PlanBuildError::StateCorruption(err.into()))?
         {
             StateRoot::V1(state) => Ok(state),
             // Once we have new versions of state we have to transform them

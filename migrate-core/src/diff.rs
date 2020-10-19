@@ -1,39 +1,51 @@
-use crate::{state::MigrationMeta, MigrateError, MigrateResult, NamedMigration};
+use std::mem;
+
+use crate::{state::MigrationMeta, DynMigration, PlanBuildError};
 use itertools::{EitherOrBoth, Itertools};
 use tracing::error;
 
-pub(crate) struct MigrationsDiff<'a> {
+pub(crate) struct MigrationsDiff {
     /// Old migrations removed from the beginning of the history
-    pub(crate) pruned: &'a [MigrationMeta],
+    pub(crate) pruned: Vec<MigrationMeta>,
     /// Completed migrations that are still left in the new migrations list
-    pub(crate) completed: &'a mut [NamedMigration],
+    pub(crate) completed: Vec<DynMigration>,
     /// New migrations that go after completed migrations in the new list
-    pub(crate) pending: &'a mut [NamedMigration],
+    pub(crate) pending: Vec<DynMigration>,
 }
 
-pub(crate) fn diff<'a>(
-    new_list: &'a mut [NamedMigration],
-    old_list: &'a [MigrationMeta],
-) -> MigrateResult<MigrationsDiff<'a>> {
+pub(crate) fn diff(
+    mut new_list: Vec<DynMigration>,
+    old_list: &mut Vec<MigrationMeta>,
+) -> Result<MigrationsDiff, PlanBuildError> {
     // Find migrations that were removed from the front of the old migrations
     // list and cut them off
-    let (pruned, old_list) = old_list.split_at(
+
+    let remaining_old_list = old_list.split_off(
         new_list
             .first()
             .and_then(|first_new| old_list.iter().position(|old| old.name == first_new.name))
-            .unwrap_or(old_list.len()),
+            .map_or(0, |idx| idx + 1),
     );
+    let pruned = mem::replace(old_list, remaining_old_list);
 
-    for it in old_list.iter().zip_longest(new_list.iter()) {
-        let (old, new) = match it {
-            EitherOrBoth::Both(old, new) => {
-                if old.name == new.name {
-                    continue;
+    let mut iter = old_list.iter().zip_longest(&new_list).enumerate();
+
+    let (completed, pending) = loop {
+        let (old, new) = match iter.next() {
+            None => break (new_list, vec![]),
+            Some((i, it)) => match it {
+                EitherOrBoth::Both(old, new) => {
+                    if old.name == new.name {
+                        continue;
+                    }
+                    (&old.name, Some(&new.name))
                 }
-                (&old.name, Some(&new.name))
-            }
-            EitherOrBoth::Left(old) => (&old.name, None),
-            EitherOrBoth::Right(_) => break,
+                EitherOrBoth::Left(old) => (&old.name, None),
+                EitherOrBoth::Right(_) => {
+                    let pending = new_list.split_off(i);
+                    break (new_list, pending);
+                }
+            },
         };
 
         let new_names = new_list.iter().map(|it| &it.name).format(", ");
@@ -46,23 +58,16 @@ pub(crate) fn diff<'a>(
 
         match new {
             Some(new) => {
-                error!(
-                    %new_names,
-                    %old_names,
-                    expected_script = old.as_str(),
-                    actual_script = new.as_str(),
-                    "{}",
-                    msg,
-                );
+                let actual_script = new.as_str();
+                let expected_script = old.as_str();
+                error!(%new_names, %old_names, %expected_script, %actual_script, "{}", msg);
             }
             None => {
                 error!(%new_names, %old_names, missing_script = old.as_str(), "{}", msg);
             }
         }
-        return Err(MigrateError::InconsistentMigrationScripts);
-    }
-
-    let (completed, pending) = new_list.split_at_mut(old_list.len());
+        return Err(PlanBuildError::InconsistentMigrationScripts);
+    };
 
     Ok(MigrationsDiff {
         pruned,

@@ -1,141 +1,327 @@
+// TODO: uncomment
+// #![warn(missing_docs)]
 #![warn(unreachable_pub)]
+#![warn(rust_2018_idioms)]
+// Makes rustc abort compilation if there are any unsafe blocks in the crate.
+// Presence of this annotation is picked up by tools such as cargo-geiger
+// and lets them ensure that there is indeed no unsafe code as opposed to
+// something they couldn't detect (e.g. unsafe added via macro expansion, etc).
+#![forbid(unsafe_code)]
 
 mod diff;
+mod dyn_migration;
 mod error;
 mod state;
 
+use std::fmt;
+
+use dyn_migration::{
+    CtxRegistry, DynMigration, DynMigrationScriptCtx, MigrationCtxProvider, MigrationDirection,
+    MigrationRunMode,
+};
 pub use error::*;
 
 use async_trait::async_trait;
-use migrate_state::StateLock;
+use itertools::Itertools;
+use migrate_state::{StateGuard, StateLock};
 use state::State;
-use tracing::instrument;
+use tracing::{info, info_span, instrument};
+use tracing_futures::Instrument;
 
-#[async_trait(?Send)]
-pub trait Migration {
-    type Ctx: 'static;
+#[async_trait]
+pub trait Migration: Send + 'static {
+    type Ctx: Send + 'static;
 
     async fn up(&mut self, ctx: &mut Self::Ctx) -> Result<(), AnyError>;
     async fn down(&mut self, ctx: &mut Self::Ctx) -> Result<(), AnyError>;
 }
 
-struct TypeErasedMigration<Mig>(Mig);
-
-#[async_trait(?Send)]
-impl<Mig: Migration> Migration for TypeErasedMigration<Mig> {
-    type Ctx = CtxRegistry;
-
-    async fn up(&mut self, ctx: &mut CtxRegistry) -> Result<(), AnyError> {
-        self.0.up(ctx.get_mut()).await
-    }
-
-    async fn down(&mut self, ctx: &mut CtxRegistry) -> Result<(), AnyError> {
-        self.0.down(ctx.get_mut()).await
-    }
-}
-
-struct CtxRegistry(anymap::AnyMap);
-impl CtxRegistry {
-    fn get_mut<T: 'static>(&mut self) -> &mut T {
-        self.0.get_mut().unwrap_or_else(|| {
-            panic!(
-                "Tried to use migration context of type {}, but it is not registered",
-                std::any::type_name::<T>(),
-            )
-        })
-    }
-    fn insert<T: 'static>(&mut self, ctx: T) {
-        self.0.insert(ctx).unwrap_or_else(|| {
-            panic!(
-                "Tried to register migration context of type {} second time",
-                std::any::type_name::<T>(),
-            )
-        });
-    }
-}
-
-pub struct MigrateCoreCtx {
+pub struct PlanBuilder {
     ctx_registry: CtxRegistry,
-    migrations: Vec<NamedMigration>,
+    migrations: Vec<DynMigration>,
     state_lock: Box<dyn StateLock>,
 }
 
-struct NamedMigration {
-    name: String,
-    migration: Box<dyn Migration<Ctx = CtxRegistry>>,
-}
-
-impl<'a> MigrateCoreCtx {
-    pub fn ctx<T: 'static>(&mut self, ctx: T) {
-        self.ctx_registry.insert(ctx);
+impl PlanBuilder {
+    pub fn ctx_provider(&mut self, provider: impl MigrationCtxProvider) -> &mut Self {
+        self.ctx_registry.insert(provider);
+        self
     }
 
-    pub fn migration(&mut self, name: impl Into<String>, migration: impl Migration + 'static) {
-        let name = name.into();
-
-        self.migrations.push(NamedMigration {
-            name: name.into(),
-            migration: Box::new(TypeErasedMigration(migration)),
-        });
-    }
-
-    // TODO: this accepts the state and the plan target
-    // (execute all, rollback_to_the_specified, execute_to_the_specified, or whatever?)
-    async fn _plan() {
-        // TODO: make a plan command that prints diff to console
-        // maybe it should return `MigrationPlan` struct which our `MigrateCoreCtx`
-        // can accept (or plan will store a reference to it) to execute or rollback
+    pub fn migration(
+        &mut self,
+        name: impl Into<String>,
+        migration: impl Migration + 'static,
+    ) -> &mut Self {
+        self.migrations
+            .push(DynMigration::new(name.into(), migration));
+        self
     }
 
     #[instrument(skip(self))]
-    pub async fn apply_migrations(&mut self) -> MigrateResult<()> {
-        let state_guard = self
+    pub async fn build(self, kind: &MigrationKind<'_>) -> Result<Plan, PlanBuildError> {
+        info!("Aquiring the state lock (this may take a moment)...");
+
+        let mut state_guard = self
             .state_lock
             .lock()
             .await
-            .map_err(|source| MigrateError::StateLock { source })?;
+            .map_err(PlanBuildError::StateLock)?;
         let state_client = state_guard.client();
 
-        let state = State::decode(
+        let mut state = State::decode(
             &state_client
                 .fetch()
                 .await
-                .map_err(|source| MigrateError::StateFetch { source })?,
+                .map_err(PlanBuildError::StateFetch)?,
         )?;
 
-        let diff = diff::diff(&mut self.migrations, &state.applied_migrations)?;
+        let mut diff = diff::diff(self.migrations, &mut state.applied_migrations)?;
 
-        eprintln!("Applying migrations up...");
+        let (left_completed, left_pending, kind) = match kind {
+            MigrationKind::Up { inclusive_bound } => {
+                let left_pending = match inclusive_bound {
+                    Some(bound) => {
+                        let idx = Self::find_migration(&diff.pending, bound)?;
+                        diff.pending.split_off(idx + 1)
+                    }
+                    None => vec![],
+                };
+                (diff.completed, left_pending, PlanKind::Up(diff.pending))
+            }
+            MigrationKind::Down { inclusive_bound } => {
+                let idx = Self::find_migration(&diff.completed, inclusive_bound)?;
+                let kind = PlanKind::Down(diff.completed.split_off(idx));
+                (diff.completed, diff.pending, kind)
+            }
+        };
 
-        for migration in diff.pending {
-            migration
-                .migration
-                .up(&mut self.ctx_registry)
-                .await
-                // TODO: record the migration as `tainted` (this is concept taken from `terraform`) if it fails,
-                // or handle it somehow else?
-                .map_err(|source| MigrateError::MigrationScript { source })?;
+        Ok(Plan {
+            ctx_registry: self.ctx_registry,
+            state: StateCtx {
+                guard: Some(state_guard),
+                pruned: diff.pruned,
+                state,
+            },
+            left_completed,
+            left_pending,
+            kind,
+        })
+    }
+
+    fn find_migration(migs: &[DynMigration], bound: &str) -> Result<usize, PlanBuildError> {
+        migs.iter().position(|it| it.name == bound).ok_or_else(|| {
+            // TODO: better error handling here (invalid input)
+            PlanBuildError::UnknownMigration {
+                name: bound.to_owned(),
+                available: migs.iter().map(|it| it.name.clone()).collect(),
+            }
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum MigrationKind<'a> {
+    Up { inclusive_bound: Option<&'a str> },
+    Down { inclusive_bound: &'a str },
+}
+
+pub struct Plan {
+    ctx_registry: CtxRegistry,
+    state: StateCtx,
+    // FIXME: use these for displaying the diff in display()
+    #[allow(unused)]
+    left_completed: Vec<DynMigration>,
+    #[allow(unused)]
+    left_pending: Vec<DynMigration>,
+
+    kind: PlanKind,
+}
+
+impl Plan {
+    pub fn builder(state_lock: Box<dyn StateLock>) -> PlanBuilder {
+        PlanBuilder {
+            ctx_registry: CtxRegistry::new(),
+            migrations: Vec::new(),
+            state_lock,
+        }
+    }
+
+    pub fn display(&self) -> PlanDisplayBuilder<'_> {
+        PlanDisplayBuilder { plan: &self }
+    }
+
+    /// Execute the migration plan by running the migration scripts.
+    #[instrument(skip(self))]
+    pub async fn exec(mut self, run_mode: MigrationRunMode) -> Result<(), PlanExecError> {
+        let mut errors = vec![];
+        let mut guard = self.state.guard.take().unwrap();
+
+        info!("Executing migrations...");
+        if let Err(err) = self.try_exec(run_mode).await {
+            errors.push(err);
         }
 
-        state_guard
-            .unlock()
-            .await
-            .map_err(|source| MigrateError::StateUnlock { source })?;
+        info!("Saving new migration state data...");
+        if let Err(err) = guard.client().update(self.state.state.encode()).await {
+            errors.push(PlanExecErrorKind::UpdateState(err));
+        }
 
+        info!("Releasing the state lock (this may take a moment)...");
+        if let Err(err) = guard.unlock().await {
+            errors.push(PlanExecErrorKind::UnlockState(err));
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(PlanExecError { errors })
+        }
+    }
+
+    async fn try_exec(&mut self, run_mode: MigrationRunMode) -> Result<(), PlanExecErrorKind> {
+        // FIXME: add a step for manual approval...
+
+        // FIXME: record the migration as `tainted` (this is concept taken from `terraform`) if it fails,
+        // or handle it somehow else?
+
+        let mut ctx = DynMigrationScriptCtx {
+            ctx_registry: &mut self.ctx_registry,
+            run_mode,
+            direction: self.kind.to_migration_direction(),
+        };
+        match &mut self.kind {
+            PlanKind::Up(migrations) => {
+                for migration in migrations {
+                    let state_entry = state::MigrationMeta {
+                        name: migration.name.clone(),
+                    };
+                    self.state.state.applied_migrations.push(state_entry);
+
+                    let span = info_span!("migrate-up");
+                    Self::exec_migration(&mut ctx, migration)
+                        .instrument(span)
+                        .await?;
+                }
+            }
+            PlanKind::Down(migrations) => {
+                for migration in migrations.iter_mut().rev() {
+                    let removed = self.state.state.applied_migrations.pop();
+                    assert_eq!(removed.unwrap().name, migration.name);
+
+                    let span = info_span!("migrate-down");
+                    Self::exec_migration(&mut ctx, migration)
+                        .instrument(span)
+                        .await?;
+                }
+            }
+        }
         Ok(())
     }
 
-    pub async fn rollback_migrations() -> MigrateResult<()> {
-        todo!()
+    async fn exec_migration(
+        ctx: &mut DynMigrationScriptCtx<'_>,
+        migration: &mut DynMigration,
+    ) -> Result<(), PlanExecErrorKind> {
+        info!(
+            migration = migration.name.as_str(),
+            "Executing migration ({}) `{}`", ctx.direction, migration.name
+        );
+        match migration.script.exec(ctx).await {
+            Err(PlanExecErrorKind::CtxLacksNoCommitMode) => {
+                info!("Migration lacks support for no-commit mode, skipping it...");
+                Ok(())
+            }
+            result => result,
+        }
     }
 }
 
-enum Plan {
-    Up(Option<MigrationBound>),
-    Down(Option<MigrationBound>),
+pub struct PlanDisplayBuilder<'p> {
+    plan: &'p Plan,
+    // FIXME: add colors support
+    // colored: bool,
 }
 
-enum MigrationBound {
-    Inclusive(String),
-    Exclusive(String),
+impl PlanDisplayBuilder<'_> {
+    pub fn build(&self) -> PlanDisplay<'_> {
+        PlanDisplay(self)
+    }
+}
+
+pub struct PlanDisplay<'p>(&'p PlanDisplayBuilder<'p>);
+
+impl fmt::Display for PlanDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // FIXME: make the output obey diff format like this:
+        // * left-completed
+        // - rolled-back (down)
+        // + applied (up)
+        // * left-pending
+
+        let plan = self.0.plan;
+
+        let (migrations, touched) = match &plan.kind {
+            PlanKind::Up(migrations) => (migrations, "applied (up)"),
+            PlanKind::Down(migrations) => (migrations, "rolled back (down)"),
+        };
+
+        if migrations.is_empty() {
+            writeln!(f, "No migrations are planned to be {}", touched)?;
+        } else {
+            let migrations = plan
+                .kind
+                .migrations_in_exec_order()
+                .format_with("\n", |mig, f| f(&format_args!("- {}", mig.name)));
+
+            writeln!(
+                f,
+                "The following migrations are planned to be {}:\n{}",
+                touched, migrations
+            )?;
+        }
+
+        if !plan.state.pruned.is_empty() {
+            let pruned = plan
+                .state
+                .pruned
+                .iter()
+                .format_with("\n", |mig, f| f(&format_args!("- {}", mig.name)));
+
+            writeln!(
+                f,
+                "\n\nThe following migrations are planned to be pruned: {}",
+                pruned
+            )?;
+        }
+
+        Ok(())
+    }
+}
+
+enum PlanKind {
+    Up(Vec<DynMigration>),
+    Down(Vec<DynMigration>),
+}
+
+impl PlanKind {
+    fn to_migration_direction(&self) -> MigrationDirection {
+        match self {
+            PlanKind::Up(_) => MigrationDirection::Up,
+            PlanKind::Down(_) => MigrationDirection::Down,
+        }
+    }
+
+    fn migrations_in_exec_order(&self) -> impl Iterator<Item = &DynMigration> {
+        match self {
+            PlanKind::Up(migrations) => Box::new(migrations.iter()) as Box<dyn Iterator<Item = _>>,
+            PlanKind::Down(migrations) => Box::new(migrations.iter().rev()),
+        }
+    }
+}
+
+struct StateCtx {
+    guard: Option<Box<dyn StateGuard>>,
+    pruned: Vec<state::MigrationMeta>,
+    state: state::State,
 }

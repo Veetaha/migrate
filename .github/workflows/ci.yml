@@ -19,7 +19,7 @@ env:
   RUSTDOCFLAGS: --deny warnings
 
 jobs:
-    # Audit Rust vulnerabilities, licenses, duplicated deps as specified in `deny.toml`
+  # Audit Rust vulnerabilities, licenses, duplicated deps as specified in `deny.toml`
   cargo-deny-check:
     runs-on: ubuntu-latest
     strategy:
