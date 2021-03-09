@@ -88,11 +88,11 @@ mod tests {
     #[async_trait]
     impl Migration for FakeMigration {
         type Ctx = Never;
-        async fn up(&mut self, _: &mut Never) -> Result<(), crate::DynError> {
-            unimplemented!()
+        async fn up(&mut self, ctx: &mut Never) -> Result<(), crate::DynError> {
+            match *ctx {}
         }
-        async fn down(&mut self, _: &mut Never) -> Result<(), crate::DynError> {
-            unimplemented!()
+        async fn down(&mut self, ctx: &mut Never) -> Result<(), crate::DynError> {
+            match *ctx {}
         }
     }
 
