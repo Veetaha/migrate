@@ -145,7 +145,7 @@ impl CtxRegistry {
 
     pub(crate) fn insert<P: MigrationCtxProvider>(&mut self, provider: P) {
         let prev_ctx = self.0.insert(CtxRegistryEntry::Uninit(Some(Box::new(provider))));
-        if let Some(_) = prev_ctx {
+        if prev_ctx.is_some() {
             panic!(
                 "Tried to register a provider for migration context of type `{}` second time",
                 any::type_name::<P::Ctx>(),
