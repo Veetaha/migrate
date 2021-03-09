@@ -17,9 +17,16 @@ description = """
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-structopt = "0.3.17"
-anyhow = "1.0"
-strum = "0.19.2"
-strum_macros = "0.19.2"
+migrate-core = { path = "../migrate-core", version = "0.1" }
+structopt = "0.3"
+thiserror = "1.0"
+tracing = "0.1"
 
-migrate-core = { path = "../migrate-core", version = "0.1.0" }
+[dev-dependencies]
+async-trait = "0.1"
+color-eyre = "0.5"
+migrate-file-state = { path = "../migrate-file-state", version = "0.1" }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.2", features = ["full"] }
+tracing-subscriber = { version = "0.2" }

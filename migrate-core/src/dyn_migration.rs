@@ -1,4 +1,4 @@
-use crate::{AnyError, Migration, PlanExecErrorKind};
+use crate::{DynError, Migration, PlanExecErrorKind};
 use async_trait::async_trait;
 use std::{any, fmt};
 
@@ -6,8 +6,8 @@ use std::{any, fmt};
 pub trait MigrationCtxProvider: Send + 'static {
     type Ctx: Send + 'static;
 
-    async fn create_in_commit_mode(self: Box<Self>) -> Result<Self::Ctx, AnyError>;
-    async fn create_in_no_commit_mode(self: Box<Self>) -> Option<Result<Self::Ctx, AnyError>>;
+    async fn create_in_commit_mode(self: Box<Self>) -> Result<Self::Ctx, DynError>;
+    async fn create_in_no_commit_mode(self: Box<Self>) -> Option<Result<Self::Ctx, DynError>>;
 }
 
 pub(crate) struct DynMigration {
@@ -85,7 +85,7 @@ impl<Ctx> CtxRegistryEntry<Ctx> {
         *self = Self::Init(ctx);
         match self {
             Self::Init(it) => it,
-            _ => unreachable!(),
+            _ => unreachable!("BUG: we've set the enum to `Init` variant!"),
         }
     }
 }
@@ -110,45 +110,46 @@ impl CtxRegistry {
                 any::type_name::<Ctx>(),
             )
         });
-        match entry {
-            CtxRegistryEntry::Init(ctx) => Ok(ctx),
-            CtxRegistryEntry::CtxLacksNoCommitMode => Err(PlanExecErrorKind::CtxLacksNoCommitMode),
-            CtxRegistryEntry::Uninit(provider) => {
-                let provider = provider
-                    .take()
-                    .expect(
-                        "this method should not be called after the provider has failed to crate the context"
-                    );
 
-                let result = match run_mode {
-                    MigrationRunMode::Commit => provider.create_in_commit_mode().await,
-                    MigrationRunMode::NoCommit => {
-                        provider.create_in_no_commit_mode().await.ok_or_else(|| {
-                            *entry = CtxRegistryEntry::CtxLacksNoCommitMode;
-                            PlanExecErrorKind::CtxLacksNoCommitMode
-                        })?
-                    }
-                };
-
-                let ctx = result.map_err(|source| PlanExecErrorKind::CreateMigrationCtx {
-                    source,
-                    run_mode,
-                    ctx_type: any::type_name::<Ctx>(),
-                })?;
-
-                Ok(entry.set_init(ctx))
+        let provider = match entry {
+            CtxRegistryEntry::Init(ctx) => return Ok(ctx),
+            CtxRegistryEntry::CtxLacksNoCommitMode => {
+                return Err(PlanExecErrorKind::CtxLacksNoCommitMode)
             }
-        }
+            CtxRegistryEntry::Uninit(provider) => provider,
+        };
+
+        let provider = provider.take().expect(
+            "BUG: this method should not be called after the provider \
+            has failed to create the context",
+        );
+
+        let result = match run_mode {
+            MigrationRunMode::Commit => provider.create_in_commit_mode().await,
+            MigrationRunMode::NoCommit => {
+                provider.create_in_no_commit_mode().await.ok_or_else(|| {
+                    *entry = CtxRegistryEntry::CtxLacksNoCommitMode;
+                    PlanExecErrorKind::CtxLacksNoCommitMode
+                })?
+            }
+        };
+
+        let ctx = result.map_err(|source| PlanExecErrorKind::CreateMigrationCtx {
+            source,
+            run_mode,
+            ctx_type: any::type_name::<Ctx>(),
+        })?;
+
+        Ok(entry.set_init(ctx))
     }
 
     pub(crate) fn insert<P: MigrationCtxProvider>(&mut self, provider: P) {
-        self.0
-            .insert(CtxRegistryEntry::Uninit(Some(Box::new(provider))))
-            .unwrap_or_else(|| {
-                panic!(
-                    "Tried to register a provider for migration context of type `{}` second time",
-                    any::type_name::<P::Ctx>(),
-                )
-            });
+        let prev_ctx = self.0.insert(CtxRegistryEntry::Uninit(Some(Box::new(provider))));
+        if let Some(_) = prev_ctx {
+            panic!(
+                "Tried to register a provider for migration context of type `{}` second time",
+                any::type_name::<P::Ctx>(),
+            )
+        }
     }
 }

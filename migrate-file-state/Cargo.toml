@@ -9,11 +9,13 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.40"
-anyhow = "1.0"
+async-trait = "0.1"
 # FIXME: use published crate when this is merged (or maintain a fork if the author doesn't respond...)
 # https://github.com/topecongiro/advisory-lock-rs/pull/3
-advisory-lock = { git = "https://github.com/Veetaha/advisory-lock-rs", branch = "master" }
+advisory-lock = "0.3"
+fs-err = "2.5"
+thiserror = "1.0"
+tokio = { version = "1.2", features = ["full"] }
 
-migrate-core = { version = "0.1.0", path = "../migrate-core" }
-migrate-state = { version = "0.1.0", path = "../migrate-state" }
+migrate-core = { version = "0.1", path = "../migrate-core" }
+migrate-state = { version = "0.1", path = "../migrate-state" }

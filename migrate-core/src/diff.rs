@@ -24,7 +24,7 @@ pub(crate) fn diff(
         new_list
             .first()
             .and_then(|first_new| old_list.iter().position(|old| old.name == first_new.name))
-            .map_or(0, |idx| idx + 1),
+            .unwrap_or(0),
     );
     let pruned = mem::replace(old_list, remaining_old_list);
 
@@ -53,7 +53,7 @@ pub(crate) fn diff(
 
         let msg = "Configured migration scripts are inconsistent with old applied \
             migrations saved in the state. You should not modify the sequence of \
-            migration scripts other than by appending new migration scripts
+            migration scripts other than by appending new migration scripts \
             or removing old ones from the beggining of the list.";
 
         match new {
@@ -74,4 +74,43 @@ pub(crate) fn diff(
         completed,
         pending,
     })
+}
+
+
+#[cfg(test)]
+mod tests {
+    use async_trait::async_trait;
+    use crate::Migration;
+    use super::*;
+    enum Never {}
+
+    struct FakeMigration;
+    #[async_trait]
+    impl Migration for FakeMigration {
+        type Ctx = Never;
+        async fn up(&mut self, _: &mut Never) -> Result<(), crate::DynError> {
+            unimplemented!()
+        }
+        async fn down(&mut self, _: &mut Never) -> Result<(), crate::DynError> {
+            unimplemented!()
+        }
+    }
+
+    #[test]
+    fn no_diff() {
+        let new_list = vec![
+            DynMigration::new("mig-1".to_owned(), FakeMigration),
+            DynMigration::new("mig-2".to_owned(), FakeMigration),
+        ];
+        let mut old_list = vec![
+            MigrationMeta { name: "mig-1".to_owned() },
+            MigrationMeta { name: "mig-2".to_owned() },
+        ];
+
+        let diff = diff(new_list, &mut old_list).unwrap();
+
+        assert_eq!(diff.completed.len(), 2);
+        assert_eq!(diff.pending.len(), 0);
+        assert_eq!(diff.pending.len(), 0);
+    }
 }

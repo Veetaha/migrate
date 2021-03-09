@@ -1,12 +1,12 @@
 use crate::PlanBuildError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MigrationMeta {
     pub(crate) name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub(crate) struct State {
     // TODO: handle corrupted migrations
     pub(crate) applied_migrations: Vec<MigrationMeta>,
@@ -14,12 +14,20 @@ pub(crate) struct State {
 
 impl State {
     pub(crate) fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(self).unwrap()
+        let state = StateRoot::V1(self.clone());
+        serde_json::to_vec_pretty(&state).unwrap()
     }
 
     pub(crate) fn decode(bytes: &[u8]) -> Result<Self, PlanBuildError> {
+        if let [] = bytes {
+            return Ok(Default::default());
+        }
+
         match serde_json::from_slice(bytes)
-            .map_err(|err| PlanBuildError::StateCorruption(err.into()))?
+            .map_err(|source| PlanBuildError::StateDecode {
+                read_state: bytes.to_owned(),
+                source: source.into()
+            })?
         {
             StateRoot::V1(state) => Ok(state),
             // Once we have new versions of state we have to transform them
@@ -40,6 +48,7 @@ impl State {
 /// for migrating migration states of old versions to newer ones. Let's see
 /// how long this lasts...
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 enum StateRoot {
     V1(State),
 }

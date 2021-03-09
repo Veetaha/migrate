@@ -1,17 +1,24 @@
 use structopt::StructOpt;
-use strum_macros::EnumString;
 
-#[derive(StructOpt)]
+#[derive(Debug, StructOpt)]
 #[structopt(author)]
 pub(crate) enum Args {
     /// Apply the pending migrations
-    Up(Up),
+    Up(UpCommand),
     /// Rollback the executed migrations
-    Down(Down),
+    Down(DownCommand),
+    /// List information about the available migrations
+    List,
 }
 
-#[derive(StructOpt)]
-pub(crate) struct Up {
+impl Default for Args {
+    fn default() -> Self {
+        Self::Up(Default::default())
+    }
+}
+
+#[derive(Debug, StructOpt, Default)]
+pub(crate) struct UpCommand {
     #[structopt(flatten)]
     pub(crate) plan: PlanArgGroup,
 
@@ -21,8 +28,8 @@ pub(crate) struct Up {
     pub(crate) inclusive_bound: Option<String>,
 }
 
-#[derive(StructOpt)]
-pub(crate) struct Down {
+#[derive(Debug, StructOpt)]
+pub(crate) struct DownCommand {
     #[structopt(flatten)]
     pub(crate) plan: PlanArgGroup,
 
@@ -32,30 +39,16 @@ pub(crate) struct Down {
     pub(crate) inclusive_bound: String,
 }
 
-#[derive(StructOpt)]
+#[derive(Debug, StructOpt, Default)]
 pub(crate) struct PlanArgGroup {
-    /// Don't apply the migrations, only show what's going to be performed.
-    /// Here, <plan> can be one of two values:
-    ///
-    /// no-run: Only show the list of migrations to be executed.
-    ///
-    /// no-commit: Show the list of migrations to be executed, but also
+    /// Don't apply the migrations, only show the list of migrations to be executed
+    #[structopt(long, conflicts_with("no_commit"))]
+    pub(crate) no_run: bool,
+
+    /// Don't apply the migrations, show the list of migrations to be executed, and also
     /// run the migrations in `NoCommit` mode (no changes will be commited
     /// to the target resource). Works only for migrations that depend on
     /// contexts supporting `NoCommit` mode, migrations that don't will be skipped.
     #[structopt(long)]
-    pub(crate) plan: Plan,
-}
-
-#[derive(EnumString)]
-#[strum(serialize_all = "kebab_case")]
-pub(crate) enum Plan {
-    NoRun,
-    NoCommit,
-}
-
-impl Default for Plan {
-    fn default() -> Plan {
-        Plan::NoRun
-    }
+    pub(crate) no_commit: bool,
 }

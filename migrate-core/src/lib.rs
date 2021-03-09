@@ -13,14 +13,13 @@ mod dyn_migration;
 mod error;
 mod state;
 
-use std::fmt;
-
-use dyn_migration::{
-    CtxRegistry, DynMigration, DynMigrationScriptCtx, MigrationCtxProvider, MigrationDirection,
-    MigrationRunMode,
-};
 pub use error::*;
+pub use dyn_migration::{MigrationCtxProvider, MigrationRunMode};
 
+use std::fmt;
+use dyn_migration::{
+    CtxRegistry, DynMigration, DynMigrationScriptCtx, MigrationDirection,
+};
 use async_trait::async_trait;
 use itertools::Itertools;
 use migrate_state::{StateGuard, StateLock};
@@ -32,8 +31,8 @@ use tracing_futures::Instrument;
 pub trait Migration: Send + 'static {
     type Ctx: Send + 'static;
 
-    async fn up(&mut self, ctx: &mut Self::Ctx) -> Result<(), AnyError>;
-    async fn down(&mut self, ctx: &mut Self::Ctx) -> Result<(), AnyError>;
+    async fn up(&mut self, ctx: &mut Self::Ctx) -> Result<(), DynError>;
+    async fn down(&mut self, ctx: &mut Self::Ctx) -> Result<(), DynError>;
 }
 
 pub struct PlanBuilder {
@@ -58,9 +57,21 @@ impl PlanBuilder {
         self
     }
 
-    #[instrument(skip(self))]
-    pub async fn build(self, kind: &MigrationKind<'_>) -> Result<Plan, PlanBuildError> {
-        info!("Aquiring the state lock (this may take a moment)...");
+    pub fn display(&self) -> MigrationsDisplayBuilder<'_> {
+        MigrationsDisplayBuilder(self)
+    }
+
+    /// Finish building the migration plan.
+    ///
+    /// This method reads the migration state and figures out which migrations
+    /// to run [`up()`][Migration::up] or [`down`][Migration::down].
+    /// This information is stored in the returned [`Plan`] struct.
+    ///
+    /// There are various reasons for this method to fail, see [`PlanBuildError`]
+    /// for more details on possible error outcomes.
+    #[instrument(skip(self), err)]
+    pub async fn finish(self, kind: &MigrationKind<'_>) -> Result<Plan, PlanBuildError> {
+        info!("Aсquiring the state lock (this may take a moment)...");
 
         let mut state_guard = self
             .state_lock
@@ -139,11 +150,11 @@ pub struct Plan {
 }
 
 impl Plan {
-    pub fn builder(state_lock: Box<dyn StateLock>) -> PlanBuilder {
+    pub fn builder(state_lock: impl StateLock + 'static) -> PlanBuilder {
         PlanBuilder {
             ctx_registry: CtxRegistry::new(),
             migrations: Vec::new(),
-            state_lock,
+            state_lock: Box::new(state_lock),
         }
     }
 
@@ -225,7 +236,8 @@ impl Plan {
     ) -> Result<(), PlanExecErrorKind> {
         info!(
             migration = migration.name.as_str(),
-            "Executing migration ({}) `{}`", ctx.direction, migration.name
+            direction = %ctx.direction,
+            "Executing migration",
         );
         match migration.script.exec(ctx).await {
             Err(PlanExecErrorKind::CtxLacksNoCommitMode) => {
@@ -237,6 +249,28 @@ impl Plan {
     }
 }
 
+pub struct MigrationsDisplayBuilder<'a>(&'a PlanBuilder);
+
+impl MigrationsDisplayBuilder<'_> {
+    pub fn finish(&self) -> MigrationsDisplay<'_> {
+        MigrationsDisplay(self)
+    }
+}
+
+pub struct MigrationsDisplay<'a>(&'a MigrationsDisplayBuilder<'a>);
+
+impl fmt::Display for MigrationsDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let format = &(self.0).0.migrations
+            .iter()
+            .enumerate()
+            .format_with("\n", |(i, mig), f| f(&format_args!("{}. {}", i + 1, mig.name)));
+
+        write!(f, "{}", format)
+    }
+}
+
+
 pub struct PlanDisplayBuilder<'p> {
     plan: &'p Plan,
     // FIXME: add colors support
@@ -244,7 +278,7 @@ pub struct PlanDisplayBuilder<'p> {
 }
 
 impl PlanDisplayBuilder<'_> {
-    pub fn build(&self) -> PlanDisplay<'_> {
+    pub fn finish(&self) -> PlanDisplay<'_> {
         PlanDisplay(self)
     }
 }

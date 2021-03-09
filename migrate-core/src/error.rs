@@ -5,29 +5,35 @@ use thiserror::Error;
 
 use crate::dyn_migration::MigrationRunMode;
 
-pub(crate) type AnyError = Box<dyn std::error::Error + Send + Sync>;
+pub(crate) type DynError = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PlanBuildError {
     #[error(
-        "provided migration scripts do not reflect \
-        the applied migrations stack stored in the persistent state"
+        "provided migration scripts do not reflect the applied migrations stack \
+        stored in the persistent state storage"
     )]
     #[non_exhaustive]
     InconsistentMigrationScripts,
 
-    #[error("migration state is corrupted")]
+    #[error(
+        "failed to decode the migration state (maybe it is corrupted?), read state: {}",
+        String::from_utf8(read_state.clone()).unwrap_or_else(|it| format!("{:?}", it.into_bytes()))
+    )]
     #[non_exhaustive]
-    StateCorruption(#[source] AnyError),
+    StateDecode {
+        read_state: Vec<u8>,
+        source: DynError
+    },
 
     #[error("failed to acquire migration state lock")]
     #[non_exhaustive]
-    StateLock(#[source] AnyError),
+    StateLock(#[source] DynError),
 
     #[error("failed to fetch migrations")]
     #[non_exhaustive]
-    StateFetch(#[source] AnyError),
+    StateFetch(#[source] DynError),
 
     #[error("unknown migration name specified: {name}, available migrations: [{}] ", available.join(","))]
     #[non_exhaustive]
@@ -44,7 +50,12 @@ pub struct PlanExecError {
 
 impl fmt::Display for PlanExecError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.errors.iter().format(", "))
+        write!(f, "failed to execute the migration plan")?;
+        let additional_errors = &self.errors[1..];
+        if !additional_errors.is_empty() {
+            write!(f, " Additional errors: {}", additional_errors.iter().format(", "))?;
+        }
+        Ok(())
     }
 }
 
@@ -57,17 +68,17 @@ impl std::error::Error for PlanExecError {
 #[derive(Debug, Error)]
 pub(crate) enum PlanExecErrorKind {
     #[error("migration script failed")]
-    ExecMigrationScript(#[source] AnyError),
+    ExecMigrationScript(#[source] DynError),
 
     #[error("failed to release migration state lock")]
-    UnlockState(#[source] AnyError),
+    UnlockState(#[source] DynError),
 
     #[error("failed to update the migration state")]
-    UpdateState(#[source] AnyError),
+    UpdateState(#[source] DynError),
 
     #[error("provider failed to create migration context of type {ctx_type} in run mode: {:?}")]
     CreateMigrationCtx {
-        source: AnyError,
+        source: DynError,
         run_mode: MigrationRunMode,
         ctx_type: &'static str,
     },
