@@ -10,12 +10,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 async-trait = "0.1"
-# FIXME: use published crate when this is merged (or maintain a fork if the author doesn't respond...)
-# https://github.com/topecongiro/advisory-lock-rs/pull/3
 advisory-lock = "0.3"
 fs-err = "2.5"
 thiserror = "1.0"
 tokio = { version = "1.2", features = ["full"] }
 
-migrate-core = { version = "0.1", path = "../migrate-core" }
 migrate-state = { version = "0.1", path = "../migrate-state" }
