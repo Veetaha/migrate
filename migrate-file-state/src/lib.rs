@@ -3,7 +3,11 @@ use async_trait::async_trait;
 use fs::File;
 use fs_err as fs;
 use migrate_state::{Result, StateClient, StateGuard, StateLock};
-use std::{io::{self, Read, Seek, Write}, marker::PhantomData, path::PathBuf};
+use std::{
+    io::{self, Read, Seek, Write},
+    marker::PhantomData,
+    path::PathBuf,
+};
 
 pub struct FileStateLock {
     state_file: PathBuf,
@@ -41,9 +45,7 @@ impl StateLock for FileStateLock {
         .await
         .expect("The task of locking the file has panicked")?;
 
-        let client = FileStateClient {
-            file,
-        };
+        let client = FileStateClient { file };
 
         Ok(Box::new(FileStateGuard(client, PhantomData)))
     }
@@ -86,10 +88,12 @@ impl StateClient for FileStateClient {
     async fn update(&mut self, state: Vec<u8>) -> Result<()> {
         // FIXME: make the calls non-blocking
 
-        self.file.seek(io::SeekFrom::Start(0))
+        self.file
+            .seek(io::SeekFrom::Start(0))
             .map_err(|source| FileStateError::Seek { source })?;
 
-        self.file.set_len(0)
+        self.file
+            .set_len(0)
             .map_err(|source| FileStateError::Truncate { source })?;
 
         self.file

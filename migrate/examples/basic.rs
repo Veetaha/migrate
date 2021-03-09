@@ -9,11 +9,10 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use migrate::core::{Migration, MigrationCtxProvider, Plan};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 const JSON_FILE_PATH: &str = "./database.json";
 const MIGRATION_STATE_FILE_PATH: &str = "./migration-state";
-
 
 type DynError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -59,8 +58,8 @@ impl JsonFileClient for RealJsonFileClient {
             Ok(it) => Ok(serde_json::from_reader(it)?),
             Err(err) => match err.kind() {
                 std::io::ErrorKind::NotFound => Ok(vec![]),
-                _ => Err(Box::new(err))
-            }
+                _ => Err(Box::new(err)),
+            },
         }
     }
 }
@@ -82,7 +81,7 @@ impl JsonFileClient for FakeJsonFileClient {
 }
 
 struct DbClientCtxProvider {
-    file_path: PathBuf
+    file_path: PathBuf,
 }
 
 #[async_trait]
@@ -90,7 +89,9 @@ impl MigrationCtxProvider for DbClientCtxProvider {
     type Ctx = Box<dyn JsonFileClient>;
 
     async fn create_in_commit_mode(self: Box<Self>) -> Result<Self::Ctx, DynError> {
-        Ok(Box::new(RealJsonFileClient { file_path: self.file_path }))
+        Ok(Box::new(RealJsonFileClient {
+            file_path: self.file_path,
+        }))
     }
 
     async fn create_in_no_commit_mode(self: Box<Self>) -> Option<Result<Self::Ctx, DynError>> {
@@ -103,7 +104,6 @@ impl MigrationCtxProvider for DbClientCtxProvider {
 
 struct Migration1;
 
-
 fn initial_users() -> Vec<UserV1> {
     vec![
         UserV1 {
@@ -111,7 +111,7 @@ fn initial_users() -> Vec<UserV1> {
         },
         UserV1 {
             name: "Sweetie".to_owned(),
-        }
+        },
     ]
 }
 
@@ -163,7 +163,8 @@ impl Migration for Migration2 {
     type Ctx = Box<dyn JsonFileClient>;
 
     async fn up(&mut self, client: &mut Self::Ctx) -> Result<(), DynError> {
-        let users_v1: Vec<UserV1> = client.get_all()?
+        let users_v1: Vec<UserV1> = client
+            .get_all()?
             .into_iter()
             .map(serde_json::from_value)
             .collect::<Result<_, _>>()?;
@@ -183,16 +184,15 @@ impl Migration for Migration2 {
     }
 
     async fn down(&mut self, client: &mut Self::Ctx) -> Result<(), DynError> {
-        let users_v2: Vec<UserV2> = client.get_all()?
+        let users_v2: Vec<UserV2> = client
+            .get_all()?
             .into_iter()
             .map(serde_json::from_value)
             .collect::<Result<_, _>>()?;
 
         let users_v1 = users_v2
             .into_iter()
-            .map(|UserV2 { name, surname: _ }| UserV1 {
-                name,
-            })
+            .map(|UserV2 { name, surname: _ }| UserV1 { name })
             .map(|it| serde_json::to_value(it).unwrap())
             .collect();
 
@@ -206,10 +206,11 @@ impl Migration for Migration2 {
 #[tokio::main]
 async fn main() -> Result<(), DynError> {
     color_eyre::install().unwrap();
-    tracing::subscriber::set_global_default(tracing_subscriber::FmtSubscriber::new())
-        .unwrap();
+    tracing::subscriber::set_global_default(tracing_subscriber::FmtSubscriber::new()).unwrap();
 
-    try_main().await.map_err(|err| color_eyre::eyre::eyre!(err))?;
+    try_main()
+        .await
+        .map_err(|err| color_eyre::eyre::eyre!(err))?;
 
     Ok(())
 }
@@ -218,13 +219,12 @@ async fn try_main() -> Result<(), DynError> {
     let state_storage = migrate_file_state::FileStateLock::new(MIGRATION_STATE_FILE_PATH);
     let mut plan = Plan::builder(state_storage);
 
-    plan
-        .ctx_provider(DbClientCtxProvider {
-            file_path: JSON_FILE_PATH.into(),
-        })
-        // Add migrations in order one after each other to the plan
-        .migration("migration-1", Migration1)
-        .migration("migration-2", Migration2);
+    plan.ctx_provider(DbClientCtxProvider {
+        file_path: JSON_FILE_PATH.into(),
+    })
+    // Add migrations in order one after each other to the plan
+    .migration("migration-1", Migration1)
+    .migration("migration-2", Migration2);
 
     // Run the `migrate` cli to get the parameters of how to
     // build and execute the rest of the migration plan

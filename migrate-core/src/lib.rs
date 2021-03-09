@@ -13,17 +13,15 @@ mod dyn_migration;
 mod error;
 mod state;
 
-pub use error::*;
 pub use dyn_migration::{MigrationCtxProvider, MigrationRunMode};
+pub use error::*;
 
-use std::fmt;
-use dyn_migration::{
-    CtxRegistry, DynMigration, DynMigrationScriptCtx, MigrationDirection,
-};
 use async_trait::async_trait;
+use dyn_migration::{CtxRegistry, DynMigration, DynMigrationScriptCtx, MigrationDirection};
 use itertools::Itertools;
 use migrate_state::{StateGuard, StateLock};
 use state::State;
+use std::fmt;
 use tracing::{info, info_span, instrument};
 use tracing_futures::Instrument;
 
@@ -261,15 +259,18 @@ pub struct MigrationsDisplay<'a>(&'a MigrationsDisplayBuilder<'a>);
 
 impl fmt::Display for MigrationsDisplay<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let format = &(self.0).0.migrations
+        let format = &(self.0)
+            .0
+            .migrations
             .iter()
             .enumerate()
-            .format_with("\n", |(i, mig), f| f(&format_args!("{}. {}", i + 1, mig.name)));
+            .format_with("\n", |(i, mig), f| {
+                f(&format_args!("{}. {}", i + 1, mig.name))
+            });
 
         write!(f, "{}", format)
     }
 }
-
 
 pub struct PlanDisplayBuilder<'p> {
     plan: &'p Plan,

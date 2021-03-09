@@ -24,7 +24,7 @@ pub enum PlanBuildError {
     #[non_exhaustive]
     StateDecode {
         read_state: Vec<u8>,
-        source: DynError
+        source: DynError,
     },
 
     #[error("failed to acquire migration state lock")]
@@ -53,7 +53,11 @@ impl fmt::Display for PlanExecError {
         write!(f, "failed to execute the migration plan")?;
         let additional_errors = &self.errors[1..];
         if !additional_errors.is_empty() {
-            write!(f, " Additional errors: {}", additional_errors.iter().format(", "))?;
+            write!(
+                f,
+                " Additional errors: {}",
+                additional_errors.iter().format(", ")
+            )?;
         }
         Ok(())
     }

@@ -27,7 +27,6 @@ impl MigrateCli {
         Ok(Self(StructOpt::from_args_safe()?))
     }
 
-
     /// Example of a database migration:
     ///
     /// ```
@@ -195,9 +194,12 @@ impl MigrateCli {
                     .await?;
 
                 (cmd.plan, plan)
-            },
+            }
             cli::Args::List => {
-                tracing::info!("Listing registered migrations in order:\n{}", plan_builder.display().finish());
+                tracing::info!(
+                    "Listing registered migrations in order:\n{}",
+                    plan_builder.display().finish()
+                );
                 return Ok(());
             }
         };
@@ -210,15 +212,14 @@ impl MigrateCli {
                 let plan = plan.finish();
                 tracing::info!("The following migration plan is generated:\n{}", plan);
                 return Ok(());
-            },
+            }
             (true, true) => unreachable!(
                 "BUG: `structopt` should have `conflicts_with` clause that \
                 prevents this invalid arguments state"
-            )
+            ),
         };
 
         plan.exec(run_mode).await?;
-
 
         Ok(())
     }

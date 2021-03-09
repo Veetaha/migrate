@@ -76,12 +76,11 @@ pub(crate) fn diff(
     })
 }
 
-
 #[cfg(test)]
 mod tests {
-    use async_trait::async_trait;
-    use crate::Migration;
     use super::*;
+    use crate::Migration;
+    use async_trait::async_trait;
     enum Never {}
 
     struct FakeMigration;
@@ -103,8 +102,12 @@ mod tests {
             DynMigration::new("mig-2".to_owned(), FakeMigration),
         ];
         let mut old_list = vec![
-            MigrationMeta { name: "mig-1".to_owned() },
-            MigrationMeta { name: "mig-2".to_owned() },
+            MigrationMeta {
+                name: "mig-1".to_owned(),
+            },
+            MigrationMeta {
+                name: "mig-2".to_owned(),
+            },
         ];
 
         let diff = diff(new_list, &mut old_list).unwrap();
