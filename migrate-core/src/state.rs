@@ -23,10 +23,11 @@ impl State {
             return Ok(Default::default());
         }
 
-        let state = serde_json::from_slice(bytes).map_err(|source| PlanBuildError::StateDecode {
-            read_state: bytes.to_owned(),
-            source: source.into(),
-        })?;
+        let state =
+            serde_json::from_slice(bytes).map_err(|source| PlanBuildError::StateDecode {
+                read_state: bytes.to_owned(),
+                source: source.into(),
+            })?;
 
         match state {
             StateRoot::V1(state) => Ok(state),
