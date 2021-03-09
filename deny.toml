@@ -10,10 +10,12 @@ ignore = []
 [bans]
 multiple-versions = "deny"
 skip = [
-    # { version = "=0.2.1", name = "mio" },
+    # We depend on older version of this crate through deps: `structopt -> clap`
+    { version = "0.11.0", name = "ansi_term" }
+    # { version = "0.42.1", name = "crate_name_here" },
 ]
 skip-tree = [
-    # { version = "=0.42.0", name = "crate_name_here", depth = 6 },
+    # { version = "0.42.0", name = "crate_name_here", depth = 6 },
 ]
 deny = []
 
@@ -21,7 +23,6 @@ deny = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/Veetaha/advisory-lock-rs"]
 
 [licenses]
 unlicensed = "deny"
@@ -33,6 +34,7 @@ private = { ignore = true }
 allow = [
     "MIT",
     "Apache-2.0",
+    "BSD-3-Clause",
 ]
 deny = []
 default = "deny"
