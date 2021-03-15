@@ -1,3 +1,13 @@
+//! Implementation of storing the migration state in a file on the local file system.
+//!
+//! See [`FileStateLock`] docs for more details.
+#![warn(missing_docs, unreachable_pub, rust_2018_idioms)]
+// Makes rustc abort compilation if there are any unsafe blocks in the crate.
+// Presence of this annotation is picked up by tools such as cargo-geiger
+// and lets them ensure that there is indeed no unsafe code as opposed to
+// something they couldn't detect (e.g. unsafe added via macro expansion, etc).
+#![forbid(unsafe_code)]
+
 use advisory_lock::{AdvisoryFileLock, FileLockMode};
 use async_trait::async_trait;
 use fs::File;
@@ -5,16 +15,45 @@ use fs_err as fs;
 use migrate_state::{Result, StateClient, StateGuard, StateLock};
 use std::{
     io::{self, Read, Seek, Write},
-    marker::PhantomData,
     path::PathBuf,
 };
 
+/// Implements [`StateLock`] storing the migration state in a file on the local
+/// file system. It uses operating system [advisory file locks][advisory-lock]
+/// to support state locking.
+///
+/// Pass the file path in [`FileStateLock::new()`] method. The default conventional
+/// file name is `migration-state`. Beware that the format of this file is private,
+/// so you shouldn't make any assumptions about it being `json`, `yaml`, `toml`
+/// or anything else even UTF-8 encoded.
+///
+/// Example usage:
+///
+/// ```no_run
+/// use migrate_file_state::FileStateLock;
+/// use migrate_core::Plan;
+///
+/// let state_lock = FileStateLock::new("./migration-state");
+///
+/// let plan = Plan::builder(state_lock);
+/// ```
+///
+/// [advisory-lock]: https://docs.rs/advisory-lock
 pub struct FileStateLock {
     state_file: PathBuf,
 }
 
 impl FileStateLock {
-    /// File
+    /// Creates migration state file storage. Accepts the file path to the migration
+    /// state file.
+    ///
+    /// If the file at the given path doesn't exist, then the state is considered
+    /// uninitialized and a new file will be created once it is updated with the
+    /// new state info.
+    ///
+    /// The default conventional name of the file is `migration-state`
+    ///
+    /// See [`FileStateLock`] struct docs for more details
     pub fn new(state_file_path: impl Into<PathBuf>) -> Self {
         Self {
             state_file: state_file_path.into(),
@@ -47,11 +86,11 @@ impl StateLock for FileStateLock {
 
         let client = FileStateClient { file };
 
-        Ok(Box::new(FileStateGuard(client, PhantomData)))
+        Ok(Box::new(FileStateGuard(client)))
     }
 }
 
-struct FileStateGuard(FileStateClient, PhantomData<&'static mut ()>);
+struct FileStateGuard(FileStateClient);
 
 #[async_trait]
 impl StateGuard for FileStateGuard {
@@ -72,10 +111,21 @@ struct FileStateClient {
     file: File,
 }
 
+impl FileStateClient {
+    fn seek_start(&mut self) -> Result<()> {
+        self.file
+            .seek(io::SeekFrom::Start(0))
+            .map_err(|source| FileStateError::Seek { source })?;
+        Ok(())
+    }
+}
+
 // FIXME: the operations here are blocking
 #[async_trait]
 impl StateClient for FileStateClient {
     async fn fetch(&mut self) -> Result<Vec<u8>> {
+        self.seek_start()?;
+
         let mut buf = Vec::new();
         // FIXME: make this calls non-blocking
         self.file
@@ -86,6 +136,8 @@ impl StateClient for FileStateClient {
     }
 
     async fn update(&mut self, state: Vec<u8>) -> Result<()> {
+        self.seek_start()?;
+
         // FIXME: make the calls non-blocking
 
         self.file
@@ -121,14 +173,38 @@ enum FileStateError {
     #[error("failed to update the migration state file")]
     Update { source: io::Error },
 
-    #[error("failed to lock  the migration state file")]
+    #[error("failed to lock the migration state file")]
     Lock {
         source: advisory_lock::FileLockError,
     },
 }
 
-#[test]
-fn impl_sync() {
-    fn assert_is_sync<T: Sync>() {}
-    assert_is_sync::<FileStateGuard>();
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    struct StateFileGuard(std::path::PathBuf);
+    impl Drop for StateFileGuard {
+        fn drop(&mut self) {
+            if let Err(err) = std::fs::remove_file(&self.0) {
+                eprintln!("Failed to remove state file created in a test: {}", err);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn run_all() {
+        let mut test_id = 0;
+        let mut guards = vec![];
+
+        migrate_state_test::run_all(|| {
+            let file_state = env::temp_dir().join(format!("file-state-smoke-test-{}", test_id));
+            test_id += 1;
+            guards.push(StateFileGuard(file_state.clone()));
+
+            move || Box::new(FileStateLock::new(file_state.clone()))
+        })
+        .await;
+    }
 }

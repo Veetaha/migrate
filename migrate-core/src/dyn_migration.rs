@@ -24,6 +24,17 @@ impl DynMigration {
     }
 }
 
+impl fmt::Debug for DynMigration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { name, script: _ } = self;
+
+        f.debug_struct("DynMigration")
+            .field("name", name)
+            .field("script", &"Box<dyn MigrationScript>")
+            .finish()
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum MigrationRunMode {
     /// Commit changes to the migration target while executing the migration

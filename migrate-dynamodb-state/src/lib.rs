@@ -50,7 +50,6 @@ impl DdbStateLockBuilder {
         self
     }
 
-
     /// Override the sort key attribute value used for the stored migration state record.
     ///
     /// Default: no sort key attribute is added to the record.

@@ -3,9 +3,16 @@ members = [
     "migrate",
     "migrate-core",
     "migrate-state",
+    "migrate-state-test",
     "migrate-file-state",
+    "migrate-dynamodb-state",
     "xtask",
 ]
+
+[profile.dev]
+# Disabling debug info speeds up builds a bunch,
+# and we don't rely on it for debugging that much.
+debug = 0
 
 [profile.release.package.xtask]
 opt-level = 0

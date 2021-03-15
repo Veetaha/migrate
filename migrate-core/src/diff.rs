@@ -1,7 +1,6 @@
-use std::mem;
-
 use crate::{state::MigrationMeta, DynMigration, PlanBuildError};
 use itertools::{EitherOrBoth, Itertools};
+use std::mem;
 use tracing::error;
 
 pub(crate) struct MigrationsDiff {
@@ -78,12 +77,16 @@ pub(crate) fn diff(
 
 #[cfg(test)]
 mod tests {
+    use std::fmt;
+
     use super::*;
     use crate::Migration;
     use async_trait::async_trait;
+    use expect_test::expect;
     enum Never {}
 
     struct FakeMigration;
+
     #[async_trait]
     impl Migration for FakeMigration {
         type Ctx = Never;
@@ -95,25 +98,243 @@ mod tests {
         }
     }
 
+    fn dyn_migration_names(dyn_migrations: &[DynMigration]) -> Vec<&str> {
+        dyn_migrations.iter().map(|it| it.name.as_str()).collect()
+    }
+
+    fn migration_meta_names(migrations_meta: &[MigrationMeta]) -> Vec<&str> {
+        migrations_meta.iter().map(|it| it.name.as_str()).collect()
+    }
+
+    struct ExpectedDiff(MigrationsDiff);
+
+    impl fmt::Debug for ExpectedDiff {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let MigrationsDiff {
+                pruned,
+                completed,
+                pending,
+            } = &self.0;
+
+            return f
+                .debug_struct("ExpectedDiff")
+                .field("pruned", &migration_meta_names(pruned))
+                .field("completed", &dyn_migration_names(completed))
+                .field("pending", &dyn_migration_names(pending))
+                .finish();
+        }
+    }
+
+    fn test_diff(
+        migrations_saved_in_state: impl IntoIterator<Item = u32>,
+        provided_migration_scripts: impl IntoIterator<Item = u32>,
+        expected: expect_test::Expect,
+    ) {
+        let create_name = |id| format!("mig-{}", id);
+
+        let mut migrations_saved_in_state: Vec<_> = migrations_saved_in_state
+            .into_iter()
+            .map(|i| MigrationMeta {
+                name: create_name(i),
+            })
+            .collect();
+
+        let provided_migration_scripts: Vec<_> = provided_migration_scripts
+            .into_iter()
+            .map(|i| DynMigration::new(create_name(i), FakeMigration))
+            .collect();
+
+        let diff_result = diff(provided_migration_scripts, &mut migrations_saved_in_state);
+
+        if let Ok(MigrationsDiff { completed, .. }) = &diff_result {
+            assert_eq!(
+                dyn_migration_names(&completed),
+                migration_meta_names(&migrations_saved_in_state),
+            )
+        }
+
+        expected.assert_debug_eq(&diff_result.map(ExpectedDiff));
+    }
+
+    #[test]
+    fn smoke_test() {
+        test_diff(
+            0..=4,
+            2..=6,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [
+                            "mig-0",
+                            "mig-1",
+                        ],
+                        completed: [
+                            "mig-2",
+                            "mig-3",
+                            "mig-4",
+                        ],
+                        pending: [
+                            "mig-5",
+                            "mig-6",
+                        ],
+                    },
+                )
+            "#]],
+        );
+    }
+
+    #[test]
+    fn no_migrations() {
+        test_diff(
+            0..0,
+            0..0,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [],
+                        completed: [],
+                        pending: [],
+                    },
+                )
+            "#]],
+        );
+    }
+
+    #[test]
+    fn first_migrations() {
+        test_diff(
+            0..0,
+            0..=0,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [],
+                        completed: [],
+                        pending: [
+                            "mig-0",
+                        ],
+                    },
+                )
+            "#]]
+        );
+        test_diff(
+            0..0,
+            0..=1,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [],
+                        completed: [],
+                        pending: [
+                            "mig-0",
+                            "mig-1",
+                        ],
+                    },
+                )
+            "#]]
+        );
+    }
+
     #[test]
     fn no_diff() {
-        let new_list = vec![
-            DynMigration::new("mig-1".to_owned(), FakeMigration),
-            DynMigration::new("mig-2".to_owned(), FakeMigration),
-        ];
-        let mut old_list = vec![
-            MigrationMeta {
-                name: "mig-1".to_owned(),
-            },
-            MigrationMeta {
-                name: "mig-2".to_owned(),
-            },
-        ];
+        test_diff(
+            0..=1,
+            0..=1,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [],
+                        completed: [
+                            "mig-0",
+                            "mig-1",
+                        ],
+                        pending: [],
+                    },
+                )
+            "#]],
+        );
+    }
 
-        let diff = diff(new_list, &mut old_list).unwrap();
+    #[test]
+    fn new_migrations() {
+        test_diff(
+            0..=1,
+            0..=2,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [],
+                        completed: [
+                            "mig-0",
+                            "mig-1",
+                        ],
+                        pending: [
+                            "mig-2",
+                        ],
+                    },
+                )
+            "#]]
+        );
 
-        assert_eq!(diff.completed.len(), 2);
-        assert_eq!(diff.pending.len(), 0);
-        assert_eq!(diff.pending.len(), 0);
+        test_diff(
+            0..=1,
+            0..=3,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [],
+                        completed: [
+                            "mig-0",
+                            "mig-1",
+                        ],
+                        pending: [
+                            "mig-2",
+                            "mig-3",
+                        ],
+                    },
+                )
+            "#]],
+        );
+    }
+
+    #[test]
+    fn pruned_migrations() {
+        test_diff(
+            0..=2,
+            1..=2,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [
+                            "mig-0",
+                        ],
+                        completed: [
+                            "mig-1",
+                            "mig-2",
+                        ],
+                        pending: [],
+                    },
+                )
+            "#]]
+        );
+
+        test_diff(
+            0..=2,
+            2..=2,
+            expect![[r#"
+                Ok(
+                    ExpectedDiff {
+                        pruned: [
+                            "mig-0",
+                            "mig-1",
+                        ],
+                        completed: [
+                            "mig-2",
+                        ],
+                        pending: [],
+                    },
+                )
+            "#]]
+        );
     }
 }

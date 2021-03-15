@@ -1,7 +1,6 @@
-// TODO: uncomment
-// #![warn(missing_docs)]
-#![warn(unreachable_pub)]
-#![warn(rust_2018_idioms)]
+//! TODO: crate-level docs
+
+#![warn(missing_docs, unreachable_pub, rust_2018_idioms)]
 // Makes rustc abort compilation if there are any unsafe blocks in the crate.
 // Presence of this annotation is picked up by tools such as cargo-geiger
 // and lets them ensure that there is indeed no unsafe code as opposed to
