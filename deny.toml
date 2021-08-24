@@ -5,15 +5,18 @@ vulnerability = "deny"
 unmaintained = "deny"
 yanked = "deny"
 notice = "deny"
-ignore = []
+ignore = [
+]
 
 [bans]
 multiple-versions = "deny"
 skip = [
-    # { version = "=0.42.0", name = "crate_name_here" },
+    # We depend on older version of this crate through deps: `structopt -> clap`
+    { version = "0.11.0", name = "ansi_term" }
+    # { version = "0.42.1", name = "crate_name_here" },
 ]
 skip-tree = [
-    # { version = "=0.42.0", name = "crate_name_here", depth = 6 },
+    # { version = "0.42.0", name = "crate_name_here", depth = 6 },
 ]
 deny = []
 
@@ -21,19 +24,45 @@ deny = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = ["https://github.com/elastio/devx.git"]
 
 [licenses]
 unlicensed = "deny"
 copyleft = "deny"
-private = { ignore = true }
 
 # Run `cargo deny list` to see which crates use which license
 # and add them to this array if you accept them
-allow = ["MIT", "Apache-2.0"]
+allow = [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "OpenSSL",
+]
 deny = []
 default = "deny"
 allow-osi-fsf-free = "neither"
 
 # We want really high confidence when inferring licenses from text
 confidence-threshold = 0.93
+
+[[licenses.clarify]]
+# This crate has a low-confidence license inference score (0.85), so clarifying manually...
+# This license here is complicated (https://github.com/briansmith/webpki/pull/128)
+# So let's just put `ISC` here for now...
+name = "webpki"
+version = "0.21.3"
+expression = "ISC"
+license-files = [
+    { path = "LICENSE", hash = 0x001c7e6c }
+]
+[[licenses.clarify]]
+name = "ring"
+version = "0.16.15"
+# Copied this expression from the comment of Jake-Shadle (maintainer of cargo-deny)
+# https://github.com/EmbarkStudios/cargo-deny/issues/110#issuecomment-576173641
+# The issue under ring repo:
+# https://github.com/briansmith/ring/issues/902
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 },
+]

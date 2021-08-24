@@ -14,7 +14,15 @@ description = """
     Generic interface for managing the migration state.
 """
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-# :D
+async-trait = "0.1"
+itertools = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-futures = "0.2"
+migrate-state = { version = "0.1", path = "../migrate-state" }
+thiserror = "1.0"
+
+[dev-dependencies]
+expect-test = "1.1"

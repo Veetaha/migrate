@@ -1,0 +1,24 @@
+[package]
+name = "migrate-state-dynamodb"
+version = "0.1.0"
+authors = ["Veetaha <veetaha2@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["native-tls"]
+native-tls = ["rusoto_core/native-tls", "rusoto_dynamodb/native-tls"]
+rustls = ["rusoto_core/rustls", "rusoto_dynamodb/rustls"]
+
+[dependencies]
+async-trait = "0.1"
+migrate-state = { version = "0.1", path = "../migrate-state" }
+rusoto_core = { version = "0.47", default_features = false }
+rusoto_dynamodb = { version = "0.47", default_features = false }
+thiserror = "1.0"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.10", features = ["full"] }
+migrate-core = { version = "0.1", path = "../migrate-core" }
+migrate-state-test = { version = "0.1", path = "../migrate-state-test" }

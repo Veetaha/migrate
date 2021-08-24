@@ -1,0 +1,18 @@
+[package]
+name = "migrate-state-file"
+version = "0.1.0"
+authors = ["Veetaha <veetaha2@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+async-trait = "0.1"
+advisory-lock = "0.3"
+fs-err = "2.6"
+thiserror = "1.0"
+tokio = { version = "1.10", features = ["full"] }
+migrate-state = { version = "0.1", path = "../migrate-state" }
+
+[dev-dependencies]
+migrate-state-test = { version = "0.1", path = "../migrate-state-test" }
+migrate-core = { version = "0.1", path = "../migrate-core" }

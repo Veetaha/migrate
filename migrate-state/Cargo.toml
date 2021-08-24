@@ -1,0 +1,9 @@
+[package]
+name = "migrate-state"
+version = "0.1.0"
+authors = ["Veetaha <veetaha2@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+async-trait = "0.1"
