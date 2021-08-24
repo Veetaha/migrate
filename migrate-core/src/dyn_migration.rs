@@ -1,6 +1,10 @@
 use crate::{DynError, Migration, PlanExecErrorKind};
 use async_trait::async_trait;
-use std::{any, fmt};
+use std::{
+    any::{self, Any},
+    collections::HashMap,
+    fmt,
+};
 
 /// Gives methods for creating the context for the migration.
 /// This should most likely create a database client, or initialize some
@@ -116,26 +120,32 @@ impl<Ctx> CtxRegistryEntry<Ctx> {
     }
 }
 
-/// Thin wrapper over `anymap` that allows for storing heterogeneous
+/// Thin wrapper over a polymorphic map that allows for storing heterogeneous
 /// types and basically provides migration context dependency injection
 /// with the type as a DI token (key).
-pub(crate) struct CtxRegistry(anymap::Map<dyn anymap::any::Any + Send>);
+pub(crate) struct CtxRegistry(HashMap<any::TypeId, Box<dyn any::Any + Send>>);
 
 impl CtxRegistry {
     pub(crate) fn new() -> Self {
-        Self(anymap::Map::new())
+        Self(HashMap::new())
     }
 
     async fn get_mut<Ctx: Send + 'static>(
         &mut self,
         run_mode: MigrationRunMode,
     ) -> Result<&mut Ctx, PlanExecErrorKind> {
-        let entry: &mut CtxRegistryEntry<Ctx> = self.0.get_mut().unwrap_or_else(|| {
-            panic!(
-                "Tried to use migration context of type {}, but no provider for it is registered",
-                any::type_name::<Ctx>(),
-            )
-        });
+        let entry: &mut CtxRegistryEntry<Ctx> = {
+            let type_id = std::any::TypeId::of::<CtxRegistryEntry<Ctx>>();
+            let val = self.0.get_mut(&type_id).unwrap_or_else(|| {
+                panic!(
+                    "Tried to use migration context of type {}, but no provider for it is registered",
+                    any::type_name::<Ctx>(),
+                )
+            });
+
+            val.downcast_mut()
+                .expect("BUG: invalid type id used in Box<dyn Any> map")
+        };
 
         let provider = match entry {
             CtxRegistryEntry::Init(ctx) => return Ok(ctx),
@@ -170,9 +180,8 @@ impl CtxRegistry {
     }
 
     pub(crate) fn insert<P: MigrationCtxProvider>(&mut self, provider: P) {
-        let prev_ctx = self
-            .0
-            .insert(CtxRegistryEntry::Uninit(Some(Box::new(provider))));
+        let val = CtxRegistryEntry::Uninit(Some(Box::new(provider)));
+        let prev_ctx = self.0.insert(val.type_id(), Box::new(val));
         if prev_ctx.is_some() {
             panic!(
                 "Tried to register a provider for migration context of type `{}` second time",

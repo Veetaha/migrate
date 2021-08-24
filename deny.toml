@@ -6,12 +6,6 @@ unmaintained = "deny"
 yanked = "deny"
 notice = "deny"
 ignore = [
-    # `time` crate depends on `stdweb` crate. We need to wait for
-    # when `time` crate will be updated
-    #
-    # Original error message:
-    # The author of the `stdweb` crate is unresponsive.
-    "RUSTSEC-2020-0056"
 ]
 
 [bans]

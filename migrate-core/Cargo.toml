@@ -15,7 +15,6 @@ description = """
 """
 
 [dependencies]
-anymap = "0.12"
 async-trait = "0.1"
 itertools = "0.10"
 serde = { version = "1.0", features = ["derive"] }
