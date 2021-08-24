@@ -14,8 +14,6 @@ description = """
     Generic interface for managing the migration state.
 """
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 anymap = "0.12"
 async-trait = "0.1"

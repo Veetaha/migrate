@@ -63,7 +63,7 @@ impl FileStateLock {
 
 #[async_trait]
 impl StateLock for FileStateLock {
-    async fn lock(self: Box<Self>) -> Result<Box<dyn StateGuard>> {
+    async fn lock(self: Box<Self>, force: bool) -> Result<Box<dyn StateGuard>> {
         let file = tokio::task::spawn_blocking(move || {
             fs::OpenOptions::new()
                 .read(true)
@@ -75,14 +75,18 @@ impl StateLock for FileStateLock {
         .await
         .expect("The task of creating the file has panicked")?;
 
-        let file = tokio::task::spawn_blocking(move || {
-            file.file()
-                .lock(FileLockMode::Exclusive)
-                .map_err(|source| FileStateError::Lock { source })
-                .map(|()| file)
-        })
-        .await
-        .expect("The task of locking the file has panicked")?;
+        let file = if force {
+            file
+        } else {
+            tokio::task::spawn_blocking(move || {
+                file.file()
+                    .lock(FileLockMode::Exclusive)
+                    .map_err(|source| FileStateError::Lock { source })
+                    .map(|()| file)
+            })
+            .await
+            .expect("The task of locking the file has panicked")?
+        };
 
         let client = FileStateClient { file };
 

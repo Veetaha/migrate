@@ -1,15 +1,20 @@
 use migrate_core::{PlanBuildError, PlanExecError};
+use thiserror::Error;
 
 pub(crate) type DynError = Box<dyn std::error::Error + Send + Sync>;
 
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum MigrateRunError {
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct Error {
+    #[from]
+    source: ErrorKind
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum ErrorKind {
     #[error("failed to build the migration plan")]
-    #[non_exhaustive]
-    PlanBuild(#[from] PlanBuildError),
+    PlanBuild(#[source] PlanBuildError),
 
     #[error("failed to execute the migration plan")]
-    #[non_exhaustive]
-    PlanExec(#[from] PlanExecError),
+    PlanExec(#[source] PlanExecError),
 }

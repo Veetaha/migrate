@@ -1,4 +1,4 @@
-use crate::PlanBuildError;
+use crate::{PlanBuildError, PlanBuildErrorKind};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,7 +24,7 @@ impl State {
         }
 
         let state =
-            serde_json::from_slice(bytes).map_err(|source| PlanBuildError::StateDecode {
+            serde_json::from_slice(bytes).map_err(|source| PlanBuildErrorKind::StateDecode {
                 read_state: bytes.to_owned(),
                 source: source.into(),
             })?;

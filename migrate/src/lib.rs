@@ -10,18 +10,30 @@
 mod cli;
 mod error;
 
+pub use error::*;
 pub use migrate_core as core;
 
 use crate::core::MigrationRunMode;
-use error::{DynError, MigrateRunError};
-use migrate_core::{MigrationKind, PlanBuilder};
+use error::{DynError, Error};
+use migrate_core::{MigrationsSelection, PlanBuilder};
 use structopt::StructOpt;
 
+/// Contains the arguments parsed from the command line of the process.
+/// It may be used to execute the operation specified in these arguments.
 #[derive(Debug)]
 pub struct MigrateCli(cli::Args);
 
 impl MigrateCli {
-    // TODO: docs
+    /// Reads the command line parameters of the current process and parses
+    /// them to build a [`migrate_core::Plan`].
+    /// As for now it uses [`structopt`] as a backend, however, this is considered
+    /// as an implementation detail and may change in future.
+    ///
+    /// # Process exit
+    ///
+    /// This method will terminate the process and exit with the error printed
+    /// to `stderr` if parsing the command line arguments has failed or if
+    /// `--help` message was requested.
     pub fn from_cli_args() -> Self {
         Self(StructOpt::from_args())
     }
@@ -181,30 +193,32 @@ impl MigrateCli {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn run(self, plan_builder: PlanBuilder) -> Result<(), MigrateRunError> {
+    pub async fn run(self, plan_builder: PlanBuilder) -> Result<(), Error> {
         let (cli::PlanArgGroup { no_commit, no_run }, plan) = match self.0 {
             cli::Args::Up(cmd) => {
                 let plan = plan_builder
-                    .finish(&MigrationKind::Up {
+                    .build(&MigrationsSelection::Up {
                         inclusive_bound: cmd.inclusive_bound.as_deref(),
                     })
-                    .await?;
+                    .await
+                    .map_err(ErrorKind::PlanBuild)?;
 
                 (cmd.plan, plan)
             }
             cli::Args::Down(cmd) => {
                 let plan = plan_builder
-                    .finish(&MigrationKind::Down {
+                    .build(&MigrationsSelection::Down {
                         inclusive_bound: &cmd.inclusive_bound,
                     })
-                    .await?;
+                    .await
+                    .map_err(ErrorKind::PlanBuild)?;
 
                 (cmd.plan, plan)
             }
             cli::Args::List => {
                 tracing::info!(
                     "Listing registered migrations in order:\n{}",
-                    plan_builder.display().finish()
+                    plan_builder.display().build()
                 );
                 return Ok(());
             }
@@ -215,7 +229,7 @@ impl MigrateCli {
             (true, false) => MigrationRunMode::NoCommit,
             (false, true) => {
                 let plan = plan.display();
-                let plan = plan.finish();
+                let plan = plan.build();
                 tracing::info!("The following migration plan is generated:\n{}", plan);
                 return Ok(());
             }
@@ -225,7 +239,7 @@ impl MigrateCli {
             ),
         };
 
-        plan.exec(run_mode).await?;
+        plan.exec(run_mode).await.map_err(ErrorKind::PlanExec)?;
 
         Ok(())
     }

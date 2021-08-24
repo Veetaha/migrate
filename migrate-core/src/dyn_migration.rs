@@ -2,11 +2,25 @@ use crate::{DynError, Migration, PlanExecErrorKind};
 use async_trait::async_trait;
 use std::{any, fmt};
 
+/// Gives methods for creating the context for the migration.
+/// This should most likely create a database client, or initialize some
+/// state, for example ensure an executable is installed.
 #[async_trait]
 pub trait MigrationCtxProvider: Send + 'static {
+    /// The type of that this provider creates.
+    /// There must be only one provider for the given type, because the Rust
+    /// type id will be used as a key to lookup the context for the migration.
     type Ctx: Send + 'static;
 
+    /// Create the context for real migration. All the changes that will be made
+    /// to the target migration object should be applied for real.
     async fn create_in_commit_mode(self: Box<Self>) -> Result<Self::Ctx, DynError>;
+
+    /// Create the context for no-commit (or dry-run) migration. All the changes that will be made
+    /// to the target migration object should not be applied for real.
+    ///
+    /// The no-commit migration context will most likely just log what would be
+    /// executed when the migration runs for real.
     async fn create_in_no_commit_mode(self: Box<Self>) -> Option<Result<Self::Ctx, DynError>>;
 }
 
@@ -35,6 +49,7 @@ impl fmt::Debug for DynMigration {
     }
 }
 
+/// Behavioral toggle for the migration execution
 #[derive(Debug, Copy, Clone)]
 pub enum MigrationRunMode {
     /// Commit changes to the migration target while executing the migration

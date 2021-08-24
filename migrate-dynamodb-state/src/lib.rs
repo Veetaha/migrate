@@ -17,7 +17,7 @@ use rusoto_dynamodb::DynamoDb;
 use std::{collections::HashMap, iter};
 
 /// Builder for [`DdbStateLock`] object, see its methods for available configurations.
-/// To finish building the object call [`finish()`](DdbStateLockBuilder::finish) method
+/// To finish building the object call [`build()`](DdbStateLockBuilder::build) method
 pub struct DdbStateLockBuilder(DdbStateCtx);
 
 impl DdbStateLockBuilder {
@@ -31,7 +31,7 @@ impl DdbStateLockBuilder {
 
     /// Override the partition key attribute value used for the stored migration state record.
     ///
-    /// Default: `"dummy"` (string DynamoDB type)
+    /// Default: `"migrate-state"` (string DynamoDB type)
     pub fn partition_key_attr_val(&mut self, val: rusoto_dynamodb::AttributeValue) -> &mut Self {
         self.0.partition_key_attr.value = val;
         self
@@ -41,7 +41,7 @@ impl DdbStateLockBuilder {
     ///
     /// Default: no sort key attribute is added to the record.
     /// If [`sort_key_attr_val`](Self::sort_key_attr_val) was not set, then
-    /// it's value will be set to `"dummy"` (string DynamoDB type)
+    /// it's value will be set to `"migrate-state"` (string DynamoDB type)
     pub fn sort_key_attr_name(&mut self, name: impl Into<String>) -> &mut Self {
         match &mut self.0.sort_key_attr {
             Some(it) => it.name = name.into(),
@@ -72,14 +72,14 @@ impl DdbStateLockBuilder {
     }
 
     /// Consume the builder and return the resulting configured [`DdbStateLock`] object
-    pub fn finish(self) -> DdbStateLock {
+    pub fn build(self) -> DdbStateLock {
         DdbStateLock(self.0)
     }
 }
 
 fn default_key_attr_value() -> rusoto_dynamodb::AttributeValue {
     rusoto_dynamodb::AttributeValue {
-        s: Some("dummy".into()),
+        s: Some("migrate-state".into()),
         ..Default::default()
     }
 }
@@ -116,11 +116,11 @@ fn default_key_attr_value() -> rusoto_dynamodb::AttributeValue {
 ///         .payload_attr_name("payload")
 ///         // yeah, `rusoto_dynamodb::AttributeValue` API is a bit ugly...
 ///         .partition_key_attr_val(rusoto_dynamodb::AttributeValue {
-///             s: Some("dummy".to_owned()),
+///             s: Some("migrate-state".to_owned()),
 ///             ..Default::default()
 ///         })
 ///         .sort_key_attr_val(rusoto_dynamodb::AttributeValue {
-///             s: Some("dummy".to_owned()),
+///             s: Some("migrate-state".to_owned()),
 ///             ..Default::default()
 ///         })
 /// });
@@ -163,7 +163,7 @@ impl DdbStateLock {
     /// # fn run(ddb_client: rusoto_dynamodb::DynamoDbClient) {
     /// use migrate_dynamodb_state::DdbStateLock;
     ///
-    /// DdbStateLock::with_builder("table-name", ddb_client, |it| {
+    /// let state_lock = DdbStateLock::with_builder("table-name", ddb_client, |it| {
     ///     it.partition_key_attr_name("pk")
     ///         .sort_key_attr_name("sk")
     /// });
@@ -177,13 +177,13 @@ impl DdbStateLock {
     ) -> Self {
         let mut builder = Self::builder(table_name, ddb);
         let _ = configure(&mut builder);
-        builder.finish()
+        builder.build()
     }
 }
 
 #[async_trait]
 impl StateLock for DdbStateLock {
-    async fn lock(self: Box<Self>) -> Result<Box<dyn StateGuard>> {
+    async fn lock(self: Box<Self>, _force: bool) -> Result<Box<dyn StateGuard>> {
         // FIXME: acquire the distributed lock here
 
         Ok(Box::new(DdbStateGuard(DdbStateClient(self.0))))
@@ -200,7 +200,10 @@ impl StateGuard for DdbStateGuard {
 
     async fn unlock(mut self: Box<Self>) -> Result<()> {
         // FIXME: release the distributed lock here
-
+        // but be cautios not to corrupt the lock if some other
+        // subject has acquired it with `force_lock()`.
+        // If that is the case, we should just issue a warning
+        // and return successfully
         Ok(())
     }
 }
@@ -210,6 +213,7 @@ struct DdbStateClient(DdbStateCtx);
 #[async_trait]
 impl StateClient for DdbStateClient {
     async fn fetch(&mut self) -> Result<Vec<u8>> {
+        // FIXME: add retries with exponential backoff
         let item = self
             .0
             .ddb
@@ -220,7 +224,7 @@ impl StateClient for DdbStateClient {
                 ..Default::default()
             })
             .await
-            .map_err(|source| DdbStateError::GetItem { source })?
+            .map_err(|source| Error::GetItem { source })?
             .item;
 
         let mut item = match item {
@@ -228,16 +232,16 @@ impl StateClient for DdbStateClient {
             None => return Ok(vec![]),
         };
 
-        let mut payload = item.remove(&self.0.payload_attr_name).ok_or_else(|| {
-            DdbStateError::PayloadAttrNotFound {
-                payload_attr_name: self.0.payload_attr_name.clone(),
-            }
-        })?;
+        let mut payload =
+            item.remove(&self.0.payload_attr_name)
+                .ok_or_else(|| Error::PayloadAttrNotFound {
+                    payload_attr_name: self.0.payload_attr_name.clone(),
+                })?;
 
         let payload = payload
             .b
             .take()
-            .ok_or_else(|| DdbStateError::UnexpectedPayloadType {
+            .ok_or(Error::UnexpectedPayloadType {
                 actual_value: payload,
             })?;
 
@@ -264,7 +268,7 @@ impl StateClient for DdbStateClient {
                 ..Default::default()
             })
             .await
-            .map_err(|source| DdbStateError::UpdateItem { source })?;
+            .map_err(|source| Error::UpdateItem { source })?;
 
         Ok(())
     }
@@ -299,14 +303,17 @@ impl DdbStateCtx {
             self.partition_key_attr.name.clone(),
             self.partition_key_attr.value.clone(),
         );
-        let sort_key = self.sort_key_attr.clone().map(|it| (it.name, it.value));
+        let sort_key = self
+            .sort_key_attr
+            .clone()
+            .map(|attr| (attr.name, attr.value));
 
         iter::once(partition_key).chain(sort_key).collect()
     }
 }
 
 #[derive(Debug, thiserror::Error)]
-enum DdbStateError {
+enum Error {
     #[error("dynamodb update_item operation failed when updating the migration state")]
     UpdateItem {
         source: rusoto_core::RusotoError<rusoto_dynamodb::UpdateItemError>,
@@ -344,8 +351,8 @@ mod tests {
             "veetaha-sandbox",
             rusoto_dynamodb::DynamoDbClient::new(Default::default()),
         )
-        .finish();
+        .build();
 
-        migrate_state_test::smoke_test(Box::new(lock)).await;
+        migrate_state_test::storage(Box::new(lock)).await;
     }
 }

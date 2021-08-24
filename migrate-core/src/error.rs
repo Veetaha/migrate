@@ -1,48 +1,49 @@
 use std::fmt;
-
 use itertools::Itertools;
 use thiserror::Error;
-
 use crate::dyn_migration::MigrationRunMode;
 
 pub(crate) type DynError = Box<dyn std::error::Error + Send + Sync>;
 
+/// Error returned as a result of [`PlanBuilder::build()`](crate::PlanBuilder::build)
 #[derive(Debug, Error)]
-#[non_exhaustive]
-pub enum PlanBuildError {
+#[error(transparent)]
+pub struct PlanBuildError {
+    #[from]
+    source: PlanBuildErrorKind,
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum PlanBuildErrorKind {
     #[error(
         "provided migration scripts do not reflect the applied migrations stack \
         stored in the persistent state storage"
     )]
-    #[non_exhaustive]
     InconsistentMigrationScripts,
 
     #[error(
         "failed to decode the migration state (maybe it is corrupted?), read state: {}",
         String::from_utf8(read_state.clone()).unwrap_or_else(|it| format!("{:?}", it.into_bytes()))
     )]
-    #[non_exhaustive]
     StateDecode {
         read_state: Vec<u8>,
         source: DynError,
     },
 
     #[error("failed to acquire migration state lock")]
-    #[non_exhaustive]
     StateLock(#[source] DynError),
 
     #[error("failed to fetch migrations")]
-    #[non_exhaustive]
     StateFetch(#[source] DynError),
 
     #[error("unknown migration name specified: {name}, available migrations: [{}] ", available.join(","))]
-    #[non_exhaustive]
     UnknownMigration {
         name: String,
         available: Vec<String>,
     },
 }
 
+/// Error returned as a result of [`Plan::exec()`](crate::Plan::exec)
 #[derive(Debug)]
 pub struct PlanExecError {
     pub(crate) errors: Vec<PlanExecErrorKind>,

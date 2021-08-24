@@ -1,4 +1,4 @@
-use crate::{state::MigrationMeta, DynMigration, PlanBuildError};
+use crate::{state::MigrationMeta, DynMigration, PlanBuildErrorKind, PlanBuildError};
 use itertools::{EitherOrBoth, Itertools};
 use std::mem;
 use tracing::error;
@@ -65,7 +65,7 @@ pub(crate) fn diff(
                 error!(%new_names, %old_names, missing_script = old.as_str(), "{}", msg);
             }
         }
-        return Err(PlanBuildError::InconsistentMigrationScripts);
+        return Err(PlanBuildErrorKind::InconsistentMigrationScripts.into());
     };
 
     Ok(MigrationsDiff {
@@ -148,7 +148,7 @@ mod tests {
 
         if let Ok(MigrationsDiff { completed, .. }) = &diff_result {
             assert_eq!(
-                dyn_migration_names(&completed),
+                dyn_migration_names(completed),
                 migration_meta_names(&migrations_saved_in_state),
             )
         }

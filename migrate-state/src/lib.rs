@@ -1,9 +1,9 @@
 //! Traits related to migration state storage.
 //!
-//! They are extracted from [`migrate-core`] crate to guarantee more stability,
+//! They are separate from [`migrate-core`] crate to guarantee more stability,
 //! even when there are breaking changes to [`migrate-core`] crate.
 //! This is because it serves as an interface for the considerable part of
-//! `migrate` ecosystem, namely for different state storage and locks
+//! [`migrate`] ecosystem, namely for different state storage and locks
 //! implementations. We would like to avoid updating all of them, especially
 //! if they don't reside in our repository.
 //!
@@ -19,7 +19,7 @@
 use async_trait::async_trait;
 use std::error::Error;
 
-/// Type alias for the [`std::result::Result`] type used in the the traits
+/// Type alias for the [`std::result::Result`] type used in the traits
 pub type Result<T, E = Box<dyn Error + Send + Sync>> = std::result::Result<T, E>;
 
 /// Client for the migration state storage.
@@ -66,18 +66,37 @@ pub trait StateClient {
 /// details.
 #[async_trait]
 pub trait StateLock {
-    /// Acquire the exclusive lock to the migration state.
+    /// # General concept
+    ///
+    /// Acquires the exclusive lock to the migration state.
     ///
     /// Acquiring the exclusive lock means that no other subjects
     /// (threads, current and other remote compute instance's processes)
     /// can access the state. The future returned by this method should
-    /// be resolved only once the lock is unlocked (via [`StateGuard::unlock()`]).
+    /// be resolved only once the lock is unlocked (via [`StateGuard::unlock()`])
+    /// if it is currently locked, or resolve right away if no other subject is
+    /// holding the lock.
+    ///
     /// This means that if some other subject is already holding a lock,
     /// we should wait for it to unlock it (by awaiting the returned future to resolve).
     ///
-    /// The lock has to be held until we call [`StateGuard::unlock()`] on
+    /// The lock has to be held until a call to [`StateGuard::unlock()`] on
     /// the returned [`StateGuard`] implementation.
-    async fn lock(self: Box<Self>) -> Result<Box<dyn StateGuard>>;
+    ///
+    /// The described behavior is expected when the `force` parameter is [`false`]
+    ///
+    /// # Boolean `force` parameter
+    ///
+    /// When the `force` boolean parameter is set to [`true`], the method must
+    /// acquire the exclusive lock even if it currently acquired by some other subject
+    /// and provide the access to the unrelying storage for the state regardless.
+    ///
+    /// This operation is dangerous, because it bypasses the locking mechanism
+    /// which may lead to concurrent state storage mutations.
+    /// It exists to help circumvent the situations where some subject has
+    /// died without unlocking the lock, thus leaving it locked potentially
+    /// forver.
+    async fn lock(self: Box<Self>, force: bool) -> Result<Box<dyn StateGuard>>;
 }
 
 /// Object returned from [`StateLock::lock()`] that while alive
