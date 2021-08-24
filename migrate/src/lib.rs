@@ -50,7 +50,7 @@ impl MigrateCli {
     /// ```
     /// use async_trait::async_trait;
     /// use migrate::core::{
-    ///     Migration, MigrationKind, MigrationRunMode, MigrationCtxProvider, Plan,
+    ///     Migration, MigrationsSelection, MigrationRunMode, MigrationCtxProvider, Plan,
     /// };
     ///
     /// /// Database client trait that is used by the migration scripts.
@@ -184,7 +184,7 @@ impl MigrateCli {
     ///
     ///     // Or use the core api to build and execute the plan
     ///     let plan = plan
-    ///         .finish(&MigrationKind::Up {
+    ///         .build(&MigrationsSelection::Up {
     ///             inclusive_bound: None,
     ///         }).await?;
     ///
