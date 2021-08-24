@@ -1,4 +1,14 @@
 delete_merged_branches = true
+
+# The result of merging the PR should produce a commit which is formatted
+# from the PR title and PR description.
+use_squash_merge = true
+
+# We use this marker as a separator in PR descriptions.
+# Any text that comes after this token is not included
+# in the final commit message
+cut_body_after = "<!-- more -->"
+
 status = [
     "cargo-deny-check (bans licenses sources)",
     "rust-lint",
