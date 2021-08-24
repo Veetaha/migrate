@@ -1,4 +1,17 @@
-//! TODO: crate-level docs
+//! The core crate that exposes APIs designed for full programmatic
+//! configuration of migrations.
+//! See [`migrate`] crate if you need a CLI wrapper instead.
+//!
+//! The crate is built on top of [`migrate_state`] and the ideas outlined there.
+//!
+//! The main entities here are the [`Migration`] trait and the [`Plan`]
+//! structure that is used to manage the [`Migration`]s that should be executed.
+//! The migrations may also be run in different modes ([`MigrationRunMode`])
+//! that allows for running them for real or for debugging (a.k.a dry-run).
+//!
+//! See the docs for [`Plan`] to continue learning the API of this crate.
+//!
+//! [`migrate`]: https://docs.rs/migrate
 
 #![warn(missing_docs, unreachable_pub, rust_2018_idioms)]
 // Makes rustc abort compilation if there are any unsafe blocks in the crate.
@@ -196,6 +209,8 @@ pub enum MigrationsSelection<'a> {
 /// that will be either skipped as already completed (according to the migration
 /// state) or not selected (as per [`MigrationsSelection`]) and the list of
 /// migrations that will be run as a result of exucting this migration [`Plan`].
+///
+/// Use [`Plan::builder()`] method to configure and create the [`Plan`]
 pub struct Plan {
     ctx_registry: CtxRegistry,
     state: StateCtx,

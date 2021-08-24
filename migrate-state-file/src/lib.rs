@@ -30,7 +30,7 @@ use std::{
 /// Example usage:
 ///
 /// ```no_run
-/// use migrate_file_state::FileStateLock;
+/// use migrate_state_file::FileStateLock;
 /// use migrate_core::Plan;
 ///
 /// let state_lock = FileStateLock::new("./migration-state");

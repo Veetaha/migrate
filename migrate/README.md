@@ -1,1 +1,1 @@
-This crate is reserved and not yet implementated, see the github repo for details
+See the [crate's docs](https://docs.rs/migrate) for more details.

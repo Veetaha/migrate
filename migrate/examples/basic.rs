@@ -216,7 +216,7 @@ async fn main() -> Result<(), DynError> {
 }
 
 async fn try_main() -> Result<(), DynError> {
-    let state_storage = migrate_file_state::FileStateLock::new(MIGRATION_STATE_FILE_PATH);
+    let state_storage = migrate_state_file::FileStateLock::new(MIGRATION_STATE_FILE_PATH);
     let mut plan = Plan::builder(state_storage);
 
     plan.ctx_provider(DbClientCtxProvider {

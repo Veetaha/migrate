@@ -4,8 +4,8 @@ members = [
     "migrate-core",
     "migrate-state",
     "migrate-state-test",
-    "migrate-file-state",
-    "migrate-dynamodb-state",
+    "migrate-state-file",
+    "migrate-state-dynamodb",
     "xtask",
 ]
 

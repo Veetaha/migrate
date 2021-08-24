@@ -1,5 +1,20 @@
-//! // TODO: crate-level docs
-//! `migrate` cli entrypoint
+//! `migrate` CLI entrypoint
+//!
+//! The CLI is provided with [`MigrateCli`] type that parses the command
+//! line arguments and orchestrates the execution of migrations.
+//!
+//! It servers as a CLI wrapper over [`migrate_core`] crate, which is the
+//! entrypoint for programmatic access of the API.
+//!
+//! The CLI should be fed the [`migrate_core::PlanBuilder`] with the migrations
+//! specific for particular use case and the CLI will only control what
+//! migrations will be executed and in which mode.
+//!
+//! See [`MigrateCli::run()`] method and the [`examples/`][examples] folder
+//! for more details.
+//!
+//! [examples]: https://github.com/Veetaha/migrate/tree/master/migrate/examples
+
 #![warn(missing_docs, unreachable_pub, rust_2018_idioms)]
 // Makes rustc abort compilation if there are any unsafe blocks in the crate.
 // Presence of this annotation is picked up by tools such as cargo-geiger
@@ -17,6 +32,9 @@ use crate::core::MigrationRunMode;
 use error::{DynError, Error};
 use migrate_core::{MigrationsSelection, PlanBuilder};
 use structopt::StructOpt;
+
+#[cfg(doctest)]
+doc_comment::doctest!(concat!(env!("CARGO_MANIFEST_DIR"), "/../README.md"), root_readme);
 
 /// Contains the arguments parsed from the command line of the process.
 /// It may be used to execute the operation specified in these arguments.
@@ -149,12 +167,12 @@ impl MigrateCli {
     /// async fn main() -> Result<(), DynError> {
     /// #   loop {
     /// #       break;
-    ///     let state_storage = migrate_file_state::FileStateLock::new("./migration-state");
+    ///     let state_storage = migrate_state_file::FileStateLock::new("./migration-state");
     /// #    }
     /// #
     /// #   // Use temporary directory to store the state file in tests
     /// #   let state_file_location = std::env::temp_dir().join("./migration-state");
-    /// #   let state_storage = migrate_file_state::FileStateLock::new(&state_file_location);
+    /// #   let state_storage = migrate_state_file::FileStateLock::new(&state_file_location);
     /// #
     /// #   struct StateFileGuard(std::path::PathBuf);
     /// #   impl Drop for StateFileGuard {

@@ -1,5 +1,7 @@
 //! Implementation of storing the migration state in an [AWS DynamoDB database table][dynamodb].
 //!
+//! This provides the implementations of traits defined in [`migrate_state`]
+//!
 //! See [`DdbStateLock`] docs for more details.
 //!
 //! [dynamodb]: https://aws.amazon.com/dynamodb/
@@ -103,7 +105,7 @@ fn default_key_attr_value() -> rusoto_dynamodb::AttributeValue {
 /// Example usage:
 ///
 /// ```no_run
-/// use migrate_dynamodb_state::DdbStateLock;
+/// use migrate_state_dynamodb::DdbStateLock;
 /// use migrate_core::Plan;
 ///
 /// let ddb_client = rusoto_dynamodb::DynamoDbClient::new(rusoto_core::Region::default());
@@ -161,7 +163,7 @@ impl DdbStateLock {
     ///
     /// ```
     /// # fn run(ddb_client: rusoto_dynamodb::DynamoDbClient) {
-    /// use migrate_dynamodb_state::DdbStateLock;
+    /// use migrate_state_dynamodb::DdbStateLock;
     ///
     /// let state_lock = DdbStateLock::with_builder("table-name", ddb_client, |it| {
     ///     it.partition_key_attr_name("pk")
