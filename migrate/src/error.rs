@@ -7,7 +7,7 @@ pub(crate) type DynError = Box<dyn std::error::Error + Send + Sync>;
 #[error(transparent)]
 pub struct Error {
     #[from]
-    source: ErrorKind
+    source: ErrorKind,
 }
 
 #[derive(Debug, Error)]

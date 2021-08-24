@@ -1,4 +1,4 @@
-use crate::{state::MigrationMeta, DynMigration, PlanBuildErrorKind, PlanBuildError};
+use crate::{state::MigrationMeta, DynMigration, PlanBuildError, PlanBuildErrorKind};
 use itertools::{EitherOrBoth, Itertools};
 use std::mem;
 use tracing::error;
@@ -215,7 +215,7 @@ mod tests {
                         ],
                     },
                 )
-            "#]]
+            "#]],
         );
         test_diff(
             0..0,
@@ -231,7 +231,7 @@ mod tests {
                         ],
                     },
                 )
-            "#]]
+            "#]],
         );
     }
 
@@ -273,7 +273,7 @@ mod tests {
                         ],
                     },
                 )
-            "#]]
+            "#]],
         );
 
         test_diff(
@@ -315,7 +315,7 @@ mod tests {
                         pending: [],
                     },
                 )
-            "#]]
+            "#]],
         );
 
         test_diff(
@@ -334,7 +334,7 @@ mod tests {
                         pending: [],
                     },
                 )
-            "#]]
+            "#]],
         );
     }
 }

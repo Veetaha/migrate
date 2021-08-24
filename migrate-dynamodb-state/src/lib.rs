@@ -238,12 +238,9 @@ impl StateClient for DdbStateClient {
                     payload_attr_name: self.0.payload_attr_name.clone(),
                 })?;
 
-        let payload = payload
-            .b
-            .take()
-            .ok_or(Error::UnexpectedPayloadType {
-                actual_value: payload,
-            })?;
+        let payload = payload.b.take().ok_or(Error::UnexpectedPayloadType {
+            actual_value: payload,
+        })?;
 
         Ok(payload.to_vec())
     }

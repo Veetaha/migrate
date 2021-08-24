@@ -178,7 +178,7 @@ pub enum MigrationsSelection<'a> {
     /// Run the forward migration logic
     Up {
         /// Defines the upper inclusive bound for the migrations that should be executed
-        inclusive_bound: Option<&'a str>
+        inclusive_bound: Option<&'a str>,
     },
 
     /// Run the reverse migration logic that cancels the actions done in
@@ -188,7 +188,7 @@ pub enum MigrationsSelection<'a> {
         /// Defines the lower inclusive bound for the migrations that should be executed.
         /// This is non-[`Option`] on purpose to prevent accidental highly destructive
         /// changes that reverse migrations may incur
-        inclusive_bound: &'a str
+        inclusive_bound: &'a str,
     },
 }
 

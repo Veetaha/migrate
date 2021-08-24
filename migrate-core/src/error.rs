@@ -1,7 +1,7 @@
-use std::fmt;
-use itertools::Itertools;
-use thiserror::Error;
 use crate::dyn_migration::MigrationRunMode;
+use itertools::Itertools;
+use std::fmt;
+use thiserror::Error;
 
 pub(crate) type DynError = Box<dyn std::error::Error + Send + Sync>;
 
