@@ -96,7 +96,7 @@ impl MigrationCtxProvider for DynamoDbClientProvider {
 }
 ```
 
-## Ready-to-use migration contexts
+## Ready-to-use migration state backends
 
 - DynamoDb: [`migrate_state_dynamodb`](https://docs.rs/migrate_state_dynamodb)
 - Local file: [`migrate_state_file`](https://docs.rs/migrate_state_file)
