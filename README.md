@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
 
     // Run the `migrate` cli to get the parameters of how to
     // build and execute the rest of the migration plan
-    let cli = migrate::MigrateCli::from_cli_args();
+    // let cli = migrate::MigrateCli::from_cli_args();
 
     // Run the CLI (this is run in a test, it's commented out not to run CLI)
     // cli.run(plan).await?;
@@ -98,7 +98,8 @@ impl MigrationCtxProvider for DynamoDbClientProvider {
 
 ## Ready-to-use migration contexts
 
-- DynamoDb: `migrate_state_dynamodb` (yet to be implemented...)
+- DynamoDb: [`migrate_state_dynamodb`](https://docs.rs/migrate_state_dynamodb)
+- Local file: [`migrate_state_file`](https://docs.rs/migrate_state_file)
 
 ## Locking
 
@@ -109,7 +110,7 @@ This feature is not implemented yet, but planned for 1.0 release...
 
 `migrate` cli should have a subcommand for creating new migrations stubs
 that should be configurable by the migration context trait implementation.
-This feature is also planned for 1.0 release...
+This feature is also planned for 1.0 release but not yet implemented...
 
 ## Goals
 
