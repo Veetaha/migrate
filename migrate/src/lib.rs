@@ -34,7 +34,10 @@ use migrate_core::{MigrationsSelection, PlanBuilder};
 use structopt::StructOpt;
 
 #[cfg(doctest)]
-doc_comment::doctest!(concat!(env!("CARGO_MANIFEST_DIR"), "/../README.md"), root_readme);
+doc_comment::doctest!(
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../README.md"),
+    root_readme
+);
 
 /// Contains the arguments parsed from the command line of the process.
 /// It may be used to execute the operation specified in these arguments.
