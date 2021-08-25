@@ -104,6 +104,6 @@ pub async fn locking(create_state_lock: &dyn Fn() -> Box<dyn StateLock>) {
 
     let (lock, forced_lock) = force_lock().await;
 
-    lock.unlock().await.unwrap();
     forced_lock.unlock().await.unwrap();
+    lock.unlock().await.unwrap();
 }

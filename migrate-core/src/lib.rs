@@ -47,8 +47,8 @@ pub trait Migration: Send + 'static {
     /// its [`type_id()`][std::any::Any::type_id].
     type Ctx: Send + 'static;
 
-    /// Run forward migration logic. To perform the execution given 
-    /// [`Migration::Ctx`] should be used. The context should commit 
+    /// Run forward migration logic. To perform the execution given
+    /// [`Migration::Ctx`] should be used. The context should commit
     /// the changes to the target migration object (e.g. a database)
     /// or just collect the diagnostic info about planned operations
     /// according to the [`MigrationRunMode`].
