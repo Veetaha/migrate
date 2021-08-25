@@ -38,7 +38,7 @@ impl State {
     }
 }
 
-/// The top-level migration state. It is simply the union type of all state
+/// The top-level migration state. It is simply union type of all state
 /// shapes that may have been stored. This is required to properly handle
 /// migration states created by old versions of our library.
 ///

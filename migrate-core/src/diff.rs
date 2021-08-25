@@ -52,7 +52,7 @@ pub(crate) fn diff(
 
         let msg = "Configured migration scripts are inconsistent with old applied \
             migrations saved in the state. You should not modify the sequence of \
-            migration scripts other than by appending new migration scripts \
+            migration scripts in any way other than appending new migration scripts \
             or removing old ones from the beggining of the list.";
 
         match new {

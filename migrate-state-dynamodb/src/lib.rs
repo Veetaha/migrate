@@ -1,6 +1,6 @@
-//! Implementation of storing the migration state in an [AWS DynamoDB database table][dynamodb].
+//! Implementation of storing migration state in an [AWS DynamoDB database table][dynamodb].
 //!
-//! This provides the implementations of traits defined in [`migrate_state`]
+//! This provides implementations of traits defined in [`migrate_state`]
 //!
 //! See [`DdbStateLock`] docs for more details.
 //!
@@ -24,11 +24,11 @@ use rusoto_dynamodb::DynamoDb;
 use std::{collections::HashMap, iter};
 
 /// Builder for [`DdbStateLock`] object, see its methods for available configurations.
-/// To finish building the object call [`build()`](DdbStateLockBuilder::build) method
+/// To finish building the object call [`build()`](DdbStateLockBuilder::build) method.
 pub struct DdbStateLockBuilder(DdbStateCtx);
 
 impl DdbStateLockBuilder {
-    /// Override the partition key attribute name used for the stored migration state record.
+    /// Override partition key attribute name used for the stored migration state record.
     ///
     /// Default: `"partition_key"`
     pub fn partition_key_attr_name(&mut self, name: impl Into<String>) -> &mut Self {
@@ -36,7 +36,7 @@ impl DdbStateLockBuilder {
         self
     }
 
-    /// Override the partition key attribute value used for the stored migration state record.
+    /// Override partition key attribute value used for stored migration state record.
     ///
     /// Default: `"migrate-state"` (string DynamoDB type)
     pub fn partition_key_attr_val(&mut self, val: rusoto_dynamodb::AttributeValue) -> &mut Self {
@@ -44,7 +44,7 @@ impl DdbStateLockBuilder {
         self
     }
 
-    /// Override the sort key attribute name used for the stored migration state record.
+    /// Override sort key attribute name used for stored migration state record.
     ///
     /// Default: no sort key attribute is added to the record.
     /// If [`sort_key_attr_val`](Self::sort_key_attr_val) was not set, then
@@ -57,7 +57,7 @@ impl DdbStateLockBuilder {
         self
     }
 
-    /// Override the sort key attribute value used for the stored migration state record.
+    /// Override sort key attribute value used for stored migration state record.
     ///
     /// Default: no sort key attribute is added to the record.
     /// If [`sort_key_attr_name`](Self::sort_key_attr_name) was not set, then
@@ -70,7 +70,7 @@ impl DdbStateLockBuilder {
         self
     }
 
-    /// Override the payload attribute name used for the stored migration state record.
+    /// Override payload attribute name used for stored migration state record.
     ///
     /// Default: `"payload"`
     pub fn payload_attr_name(&mut self, name: impl Into<String>) -> &mut Self {
@@ -78,7 +78,7 @@ impl DdbStateLockBuilder {
         self
     }
 
-    /// Consume the builder and return the resulting configured [`DdbStateLock`] object
+    /// Consume the builder and return final configured [`DdbStateLock`] object
     pub fn build(self) -> DdbStateLock {
         DdbStateLock(self.0)
     }
@@ -91,7 +91,7 @@ fn default_key_attr_value() -> rusoto_dynamodb::AttributeValue {
     }
 }
 
-/// Implements [`StateLock`] storing the migration state in an [AWS DynamoDB database table][dynamodb].
+/// Implements [`StateLock`] storing migration state in an [AWS DynamoDB database table][dynamodb].
 ///
 /// <pre class="compile_fail" style="white-space:normal;font:inherit;">
 ///
@@ -100,12 +100,12 @@ fn default_key_attr_value() -> rusoto_dynamodb::AttributeValue {
 ///
 /// </pre>
 ///
-/// You can configure how and where the migration state is stored via [`DdbStateLockBuilder`]
+/// You can configure how and where migration state is stored via [`DdbStateLockBuilder`]
 /// which is created via [`DdbStateLock::with_builder()`] (or lower-level [`DdbStateLock::builder()`]).
 ///
 /// In general migration state is stored as a single record with a partition key,
-/// an optional sort key and the payload attribute of binary array type (payload
-/// contains the migration state itself).
+/// an optional sort key and payload attribute of binary array type (payload
+/// contains migration state itself).
 ///
 /// Example usage:
 ///
@@ -143,7 +143,7 @@ impl DdbStateLock {
     ///
     /// Takes two required arguments:
     ///
-    /// - `table_name` - The name of the DynamoDB table to store the state in
+    /// - `table_name` - Name of the DynamoDB table to store state in
     /// - `ddb` - [`DynamoDb`] client implementation to use for all DynamoDB API calls
     pub fn builder(
         table_name: impl Into<String>,
@@ -158,9 +158,9 @@ impl DdbStateLock {
         })
     }
 
-    /// Same as [`DdbStateLock::builder()`], but accepts the third argument, which
-    /// is a clousure that takes the builder to configure it in a single method call chain.
-    /// The method exists only for convenience of creating [`DdbStateLock`] in one expression.
+    /// Same as [`DdbStateLock::builder()`], but accepts third argument, which
+    /// is a clousure that takes builder to configure it in a single method call chain.
+    /// Method exists only for convenience of creating [`DdbStateLock`] in one expression.
     ///
     /// The return value of the closure is ignored, it is intended only for a single
     /// simple method call chain. Use [`DdbStateLock::builder()`] method to implement
@@ -318,25 +318,25 @@ impl DdbStateCtx {
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
-    #[error("dynamodb update_item operation failed when updating the migration state")]
+    #[error("dynamodb update_item operation failed when updating migration state")]
     UpdateItem {
         source: rusoto_core::RusotoError<rusoto_dynamodb::UpdateItemError>,
     },
 
-    #[error("dynamodb get_item operation failed when fetching the migration state")]
+    #[error("dynamodb get_item operation failed when fetching migration state")]
     GetItem {
         source: rusoto_core::RusotoError<rusoto_dynamodb::GetItemError>,
     },
 
     #[error(
         "the returned migration state item doesn't contain \
-        the payload attribute `{payload_attr_name}`"
+        payload attribute `{payload_attr_name}`"
     )]
     PayloadAttrNotFound { payload_attr_name: String },
 
     #[error(
         "the returned migration state item's payload is not \
-        of the binary array type, actual value: {actual_value:?}"
+        binary array type, actual value: {actual_value:?}"
     )]
     UnexpectedPayloadType {
         actual_value: rusoto_dynamodb::AttributeValue,

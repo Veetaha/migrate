@@ -34,7 +34,7 @@ where
     futures::join!(storage(factories.0()), locking(&factories.1));
 }
 
-/// Test the correctness of data storage [`StateLock`]
+/// Test correctness of data storage [`StateLock`]
 ///
 /// Beware that this doesn't currently ensure that [`migrate_state::StateGuard::unlock()`]
 /// is called if the test fails. This should be fixed in future updates.
@@ -55,7 +55,7 @@ pub async fn storage(state_lock: Box<dyn StateLock>) {
     state.unlock().await.unwrap();
 }
 
-/// Test the correctness of locking mechanism that [`StateLock`] provides.
+/// Test correctness of locking mechanism that [`StateLock`] provides.
 ///
 /// Beware that this doesn't currently ensure that [`migrate_state::StateGuard::unlock()`]
 /// is called if the test fails. This should be fixed in future updates.

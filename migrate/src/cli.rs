@@ -3,11 +3,11 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(author)]
 pub(crate) enum Args {
-    /// Apply the pending migrations
+    /// Apply pending migrations
     Up(UpCommand),
-    /// Rollback the executed migrations
+    /// Rollback executed migrations
     Down(DownCommand),
-    /// List information about the available migrations
+    /// List information about available migrations
     List,
 }
 
@@ -22,7 +22,7 @@ pub(crate) struct UpCommand {
     #[structopt(flatten)]
     pub(crate) plan: PlanArgGroup,
 
-    /// Name of the bounding migration to be applied the last (inclusive).
+    /// Name of the bounding migration to be applied last (inclusive).
     /// By default all the pending migrations will be run upwards.
     #[structopt(long)]
     pub(crate) inclusive_bound: Option<String>,
@@ -33,7 +33,7 @@ pub(crate) struct DownCommand {
     #[structopt(flatten)]
     pub(crate) plan: PlanArgGroup,
 
-    /// Name of the bounding migration to be rolled back the last (inclusive)
+    /// Name of the bounding migration to be rolled back last (inclusive)
     /// This argument is required to prevent sudden deletions of production databases
     #[structopt(long)]
     pub(crate) inclusive_bound: String,
@@ -41,11 +41,11 @@ pub(crate) struct DownCommand {
 
 #[derive(Debug, StructOpt, Default)]
 pub(crate) struct PlanArgGroup {
-    /// Don't apply the migrations, only show the list of migrations to be executed
+    /// Don't apply the migrations, only show list of migrations to be executed
     #[structopt(long, conflicts_with("no_commit"))]
     pub(crate) no_run: bool,
 
-    /// Don't apply the migrations, show the list of migrations to be executed, and also
+    /// Don't apply migrations, show list of migrations to be executed, and also
     /// run the migrations in `NoCommit` mode (no changes will be commited
     /// to the target resource). Works only for migrations that depend on
     /// contexts supporting `NoCommit` mode, migrations that don't will be skipped.

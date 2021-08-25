@@ -1,4 +1,4 @@
-//! Implementation of storing the migration state in a file on the local file system.
+//! Implementation of storing migration state in a file on the local file system.
 //!
 //! See [`FileStateLock`] docs for more details.
 #![warn(missing_docs, unreachable_pub, rust_2018_idioms)]
@@ -18,11 +18,11 @@ use std::{
     path::PathBuf,
 };
 
-/// Implements [`StateLock`] storing the migration state in a file on the local
+/// Implements [`StateLock`] storing migration state in a file on the local
 /// file system. It uses operating system [advisory file locks][advisory-lock]
 /// to support state locking.
 ///
-/// Pass the file path in [`FileStateLock::new()`] method. The default conventional
+/// Pass the file path in [`FileStateLock::new()`] method. Default conventional
 /// file name is `migration-state`. Beware that the format of this file is private,
 /// so you shouldn't make any assumptions about it being `json`, `yaml`, `toml`
 /// or anything else even UTF-8 encoded.
@@ -44,11 +44,11 @@ pub struct FileStateLock {
 }
 
 impl FileStateLock {
-    /// Creates migration state file storage. Accepts the file path to the migration
+    /// Creates migration state file storage. Accepts the file path to migration
     /// state file.
     ///
-    /// If the file at the given path doesn't exist, then the state is considered
-    /// uninitialized and a new file will be created once it is updated with the
+    /// If the file at the given path doesn't exist, then state is considered
+    /// uninitialized and a new file will be created once it is updated with
     /// new state info.
     ///
     /// The default conventional name of the file is `migration-state`
@@ -124,7 +124,7 @@ impl FileStateClient {
     }
 }
 
-// FIXME: the operations here are blocking
+// FIXME: operations here are blocking
 #[async_trait]
 impl StateClient for FileStateClient {
     async fn fetch(&mut self) -> Result<Vec<u8>> {
@@ -162,22 +162,22 @@ impl StateClient for FileStateClient {
 
 #[derive(Debug, thiserror::Error)]
 enum FileStateError {
-    #[error("failed to open the migration state file")]
+    #[error("failed to open migration state file")]
     Open { source: io::Error },
 
-    #[error("failed to read the migration state file")]
+    #[error("failed to read migration state file")]
     Read { source: io::Error },
 
     #[error("failed to set the cursor to the beginning of the state file")]
     Seek { source: io::Error },
 
-    #[error("failed to truncate the migration state file")]
+    #[error("failed to truncate migration state file")]
     Truncate { source: io::Error },
 
-    #[error("failed to update the migration state file")]
+    #[error("failed to update migration state file")]
     Update { source: io::Error },
 
-    #[error("failed to lock the migration state file")]
+    #[error("failed to lock migration state file")]
     Lock {
         source: advisory_lock::FileLockError,
     },
