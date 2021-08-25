@@ -68,7 +68,7 @@ pub trait Migration: Send + 'static {
     async fn down(&mut self, ctx: &mut Self::Ctx) -> Result<(), DynError>;
 }
 
-/// Builder for [`Plan`] to allow it's convenient configuration
+/// Builder for [`Plan`] to allow its convenient configuration
 pub struct PlanBuilder {
     ctx_registry: CtxRegistry,
     migrations: Vec<DynMigration>,
