@@ -2,7 +2,7 @@
 //! configuration of migrations.
 //! See [`migrate`] crate if you need a CLI wrapper instead.
 //!
-//! Crate is built on top of [`migrate_state`] and the ideas outlined there.
+//! The crate is built on top of [`migrate_state`] and the ideas outlined there.
 //!
 //! The main entities here are the [`Migration`] trait and the [`Plan`]
 //! structure that is used to manage [`Migration`]s that should be executed.
