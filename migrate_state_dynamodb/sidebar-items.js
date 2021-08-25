@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["DdbStateLock","Implements [`StateLock`] storing migration state in an AWS DynamoDB database table."],["DdbStateLockBuilder","Builder for [`DdbStateLock`] object, see its methods for available configurations. To finish building the object call `build()` method."]]});

@@ -1,0 +1,4 @@
+(function() {var implementors = {};
+implementors["migrate_state_dynamodb"] = [{"text":"impl <a class=\"trait\" href=\"migrate_state/trait.StateLock.html\" title=\"trait migrate_state::StateLock\">StateLock</a> for <a class=\"struct\" href=\"migrate_state_dynamodb/struct.DdbStateLock.html\" title=\"struct migrate_state_dynamodb::DdbStateLock\">DdbStateLock</a>","synthetic":false,"types":["migrate_state_dynamodb::DdbStateLock"]}];
+implementors["migrate_state_file"] = [{"text":"impl <a class=\"trait\" href=\"migrate_state/trait.StateLock.html\" title=\"trait migrate_state::StateLock\">StateLock</a> for <a class=\"struct\" href=\"migrate_state_file/struct.FileStateLock.html\" title=\"struct migrate_state_file::FileStateLock\">FileStateLock</a>","synthetic":false,"types":["migrate_state_file::FileStateLock"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

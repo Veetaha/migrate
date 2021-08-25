@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["migrate","migrate_core","migrate_state","migrate_state_dynamodb","migrate_state_file","migrate_state_test","xtask"];

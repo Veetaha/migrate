@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["MigrateCli","Contains the arguments parsed from the command line of the process. It may be used to execute the operation specified in these arguments."]]});

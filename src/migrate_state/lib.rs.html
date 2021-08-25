@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `migrate-state/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../migrate_state/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+</pre><pre class="rust">
+<span class="doccomment">//! Traits related to migration state storage.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! They are separate from [`migrate-core`] crate to guarantee more stability,</span>
+<span class="doccomment">//! even when there are breaking changes to [`migrate-core`] crate.</span>
+<span class="doccomment">//! This is because it serves as an interface for the considerable part of</span>
+<span class="doccomment">//! [`migrate`] ecosystem, namely for different state storage and locks</span>
+<span class="doccomment">//! implementations. We would like to avoid updating all of them, especially</span>
+<span class="doccomment">//! if they don&#39;t reside in our repository.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! [`migrate`]: https://docs.rs/migrate</span>
+<span class="doccomment">//! [`migrate-core`]: https://docs.rs/migrate-core</span>
+<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>, <span class="ident">unreachable_pub</span>, <span class="ident">rust_2018_idioms</span>)]</span>
+<span class="comment">// Makes rustc abort compilation if there are any unsafe blocks in the crate.</span>
+<span class="comment">// Presence of this annotation is picked up by tools such as cargo-geiger</span>
+<span class="comment">// and lets them ensure that there is indeed no unsafe code as opposed to</span>
+<span class="comment">// something they couldn&#39;t detect (e.g. unsafe added via macro expansion, etc).</span>
+<span class="attribute">#![<span class="ident">forbid</span>(<span class="ident">unsafe_code</span>)]</span>
+
+<span class="kw">use</span> <span class="ident">async_trait::async_trait</span>;
+<span class="kw">use</span> <span class="ident">std::error::Error</span>;
+
+<span class="doccomment">/// Type alias for the [`std::result::Result`] type used in the traits</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span> <span class="op">=</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">std::result::Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>;
+
+<span class="doccomment">/// Client for the migration state storage.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// State storage is basically a [`Vec`]`&lt;`[`u8`]`&gt;`.</span>
+<span class="doccomment">/// Implementations of this trait should not make any assumptions about</span>
+<span class="doccomment">/// the state shape (i.e. what the given [`Vec`]`&lt;`[`u8`]`&gt;` represents). The given</span>
+<span class="doccomment">/// bytes are not even guaranteed to be valid UTF8.</span>
+<span class="attribute">#[<span class="ident">async_trait</span>]</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">StateClient</span> {
+    <span class="comment">// FIXME: when fetch or update fail, we don&#39;t call unlock()</span>
+    <span class="comment">// this might be fine, the implementation should handle this,</span>
+    <span class="comment">// send heartbeats to verify the lock is not poisonned, or is this invariant</span>
+    <span class="comment">// too complicated for implementations to implement and we might help with</span>
+    <span class="comment">// this somehow on our high-level end?</span>
+
+    <span class="doccomment">/// Return all bytes stored in the storage.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If the storage wasn&#39;t initialized yet with `update()` call previously</span>
+    <span class="doccomment">/// then it should return `Ok(vec![])` (empty vector), otherwise value</span>
+    <span class="doccomment">/// stored with the most recent `update()` call should be returned</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">fetch</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
+    <span class="doccomment">/// Puts given bytes into the storage.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// It shouldn&#39;t make any assumptions about what these bytes represent,</span>
+    <span class="doccomment">/// there are no guarantees about the byte pattern `migrate` uses to</span>
+    <span class="doccomment">/// store the serialized migration state representation.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// For the first ever call to [`update()`](Self::update) it should</span>
+    <span class="doccomment">/// initialize storage with the given bytes, and if [`fetch()`](Self::fetch)</span>
+    <span class="doccomment">/// was called before intialization hapenned, then [`fetch()`](Self::fetch)</span>
+    <span class="doccomment">/// should return `Ok(None)`.</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">state</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
+}
+
+<span class="doccomment">/// Lock over a migration state storage.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// It guards underlying migration state preventing concurrent access</span>
+<span class="doccomment">/// from multiple threads and processes. Ideally, this should be a distributed</span>
+<span class="doccomment">/// lock implementation.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The main method of this trait is [`StateLock::lock()`], see its docs for more</span>
+<span class="doccomment">/// details.</span>
+<span class="attribute">#[<span class="ident">async_trait</span>]</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">StateLock</span> {
+    <span class="doccomment">/// # General concept</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Acquires exclusive lock to migration state.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Acquiring exclusive lock means that no other subjects</span>
+    <span class="doccomment">/// (threads, current and other remote compute instance&#39;s processes)</span>
+    <span class="doccomment">/// can access the state. Future returned by this method should</span>
+    <span class="doccomment">/// be resolved only after the lock is unlocked (via [`StateGuard::unlock()`])</span>
+    <span class="doccomment">/// if it is currently locked, or resolve right away if no other subject is</span>
+    <span class="doccomment">/// holding the lock.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This means that if some other subject is already holding a lock,</span>
+    <span class="doccomment">/// we should wait for it to unlock it (by awaiting returned future to resolve).</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The lock has to be held until a call to [`StateGuard::unlock()`] on</span>
+    <span class="doccomment">/// returned [`StateGuard`] implementation.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Described behavior is expected when the `force` parameter is [`false`]</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Boolean `force` parameter</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// When the `force` boolean parameter is set to [`true`], method must</span>
+    <span class="doccomment">/// acquire exclusive lock even if it currently acquired by some other subject</span>
+    <span class="doccomment">/// and provide the access to underlying state storage regardless.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This operation is dangerous, because it bypasses locking mechanism</span>
+    <span class="doccomment">/// which may lead to concurrent state storage mutations.</span>
+    <span class="doccomment">/// It exists to help circumvent situations where some subject has</span>
+    <span class="doccomment">/// died without unlocking the lock, thus leaving it locked potentially</span>
+    <span class="doccomment">/// forver.</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="self">self</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">force</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">StateGuard</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+}
+
+<span class="doccomment">/// Object returned from [`StateLock::lock()`] that holds</span>
+<span class="doccomment">/// state storage lock while alive, preventing concurrent access to it</span>
+<span class="doccomment">/// from multiple threads and processes.</span>
+<span class="attribute">#[<span class="ident">async_trait</span>]</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">StateGuard</span> {
+    <span class="doccomment">/// Returns the [`StateClient`] to be used to access the migration state</span>
+    <span class="doccomment">/// while this [`StateGuard`] hold the lock.</span>
+    <span class="kw">fn</span> <span class="ident">client</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">StateClient</span>;
+
+    <span class="doccomment">/// Unlocks currently held migration state lock allowing for</span>
+    <span class="doccomment">/// other subjects to acquire it with [`StateLock::lock()`] once again</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">unlock</span>(<span class="self">self</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
+}
+
+<span class="attribute">#[<span class="ident">test</span>]</span>
+<span class="kw">fn</span> <span class="ident">object_safety</span>() {
+    <span class="kw">fn</span> <span class="ident">_test</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">StateGuard</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">StateLock</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">StateClient</span>) {}
+}
+</pre></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="migrate_state" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

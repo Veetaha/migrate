@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["FileStateLock","Implements [`StateLock`] storing migration state in a file on the local file system. It uses operating system advisory file locks to support state locking."]]});
