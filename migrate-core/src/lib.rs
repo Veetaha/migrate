@@ -1,13 +1,13 @@
-//! The core crate that exposes APIs designed for full programmatic
+//! Core crate that exposes APIs designed for full programmatic
 //! configuration of migrations.
 //! See [`migrate`] crate if you need a CLI wrapper instead.
 //!
-//! The crate is built on top of [`migrate_state`] and the ideas outlined there.
+//! Crate is built on top of [`migrate_state`] and the ideas outlined there.
 //!
 //! The main entities here are the [`Migration`] trait and the [`Plan`]
-//! structure that is used to manage the [`Migration`]s that should be executed.
+//! structure that is used to manage [`Migration`]s that should be executed.
 //! The migrations may also be run in different modes ([`MigrationRunMode`])
-//! that allows for running them for real or for debugging (a.k.a dry-run).
+//! that allows running them for real or for debugging (a.k.a dry-run).
 //!
 //! See the docs for [`Plan`] to continue learning the API of this crate.
 //!
@@ -37,39 +37,38 @@ use std::fmt;
 use tracing::{info, info_span, instrument};
 use tracing_futures::Instrument;
 
-/// Contains the behavior of a single migration that may be applied or reversed
+/// Contains behavior of a single migration that may be applied or reversed
 /// using [`Migration::up()`] and [`Migration::down()`] methods respectively.
 #[async_trait]
 pub trait Migration: Send + 'static {
-    /// Defines that type of the context that will be injected for the migration
-    /// to use during its execution.
+    /// Defines context type injected for migration during its execution.
     ///
-    /// The context will be created by [`MigrationCtxProvider`] and looked up by
+    /// Context will be created by [`MigrationCtxProvider`] and looked up by
     /// its [`type_id()`][std::any::Any::type_id].
     type Ctx: Send + 'static;
 
-    /// Run the forward migration logic. The given [`Migration::Ctx`] should
-    /// be used to perform the execution. The context should take care to
-    /// to commit the changes to the target migration object (e.g. a database)
-    /// or just collect the diagnostic info about the planned operations
+    /// Run forward migration logic. To perform the execution given 
+    /// [`Migration::Ctx`] should be used. The context should commit 
+    /// the changes to the target migration object (e.g. a database)
+    /// or just collect the diagnostic info about planned operations
     /// according to the [`MigrationRunMode`].
     ///
-    /// The migration is safe to assume that migrations that precede it were
-    /// already applied and it may observe the changes made by them.
+    /// For a migration it is safe to assume that preceding migrations were
+    /// already applied and it may observe changes they made.
     async fn up(&mut self, ctx: &mut Self::Ctx) -> Result<(), DynError>;
 
-    /// Similar to [`Migration::up()`], but applies the migration logic in reverse
+    /// Similar to [`Migration::up()`], but applies migration logic in reverse
     /// direction. It may safely assume that this same [`Migration::up()`]
-    /// method was run and it may observe the changes made by the forward
+    /// method was run and it may observe changes made by forward
     /// migration logic.
     ///
-    /// This method should cancel the changes made by the forward migration logic
-    /// and basically rollback the state of the migration object to the state
+    /// This method should cancel changes made by forward migration logic
+    /// and basically rollback the state of migration object to the state
     /// it was before [`Migration::up()`] was called.
     async fn down(&mut self, ctx: &mut Self::Ctx) -> Result<(), DynError>;
 }
 
-/// Bbuilder for [`Plan`] to allow its convenient configuration
+/// Builder for [`Plan`] to allow it's convenient configuration
 pub struct PlanBuilder {
     ctx_registry: CtxRegistry,
     migrations: Vec<DynMigration>,
@@ -78,17 +77,17 @@ pub struct PlanBuilder {
 }
 
 impl PlanBuilder {
-    /// Register the [`MigrationCtxProvider`] that will be used to provide
-    /// context for the migrations in the built [`Plan`]
+    /// Register [`MigrationCtxProvider`] that will be used to provide
+    /// context for migrations in the built [`Plan`].
     pub fn ctx_provider(&mut self, provider: impl MigrationCtxProvider) -> &mut Self {
         self.ctx_registry.insert(provider);
         self
     }
 
-    /// Append the [`Migration`] to the list of migrations configured for the plan.
-    /// Keep in mind that it is important to keep the migrations in order
+    /// Append [`Migration`] to the list of migrations configured for the plan.
+    /// Keep in mind that it is important to keep migrations in order
     /// and add new migrations strictly to the end of the list so that new
-    /// migrations obvserve the changes from previous migrations.
+    /// migrations observe the changes from previous migrations.
     pub fn migration(
         &mut self,
         name: impl Into<String>,
@@ -108,13 +107,13 @@ impl PlanBuilder {
         self
     }
 
-    /// Create the builder for rendering the current migration configuration
+    /// Create builder for rendering the current migration configuration
     /// in this [`PlanBuilder`].
     pub fn display(&self) -> MigrationsDisplayBuilder<'_> {
         MigrationsDisplayBuilder(self)
     }
 
-    /// Finish building the migration plan.
+    /// Finish building migration plan.
     ///
     /// This method reads the migration state and figures out which migrations
     /// to run [`up()`][Migration::up] or [`down`][Migration::down].
@@ -185,30 +184,30 @@ impl PlanBuilder {
     }
 }
 
-/// Selects the direction of the migration as well as the bounding migration.
+/// Selects direction of the migration as well as the bounding migration.
 #[derive(Debug)]
 pub enum MigrationsSelection<'a> {
-    /// Run the forward migration logic
+    /// Run forward migration logic
     Up {
-        /// Defines the upper inclusive bound for the migrations that should be executed
+        /// Defines upper inclusive bound for the migrations that should be executed
         inclusive_bound: Option<&'a str>,
     },
 
-    /// Run the reverse migration logic that cancels the actions done in
+    /// Run reverse migration logic that cancels actions done in
     /// [`MigrationsSelection::Up`] for migrations that are recorded in
     /// [migration state][`migrate_state`].
     Down {
-        /// Defines the lower inclusive bound for the migrations that should be executed.
+        /// Defines lower inclusive bound for migrations that should be executed.
         /// This is non-[`Option`] on purpose to prevent accidental highly destructive
-        /// changes that reverse migrations may incur
+        /// changes reverse migrations may cause
         inclusive_bound: &'a str,
     },
 }
 
-/// Contains a fixed snapshot of the migration state and the list of migrations
-/// that will be either skipped as already completed (according to the migration
-/// state) or not selected (as per [`MigrationsSelection`]) and the list of
-/// migrations that will be run as a result of exucting this migration [`Plan`].
+/// Contains a fixed snapshot of migration state and list of migrations
+/// that will be either skipped as already completed (according to migration
+/// state) or not selected (as per [`MigrationsSelection`]) and list of
+/// migrations that will be run as a result of executing this migration [`Plan`].
 ///
 /// Use [`Plan::builder()`] method to configure and create the [`Plan`]
 pub struct Plan {
@@ -224,7 +223,7 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// Returns the builder for this [`Plan`] to allow its convenient configuration
+    /// Returns a builder for this [`Plan`] to allow its convenient configuration
     pub fn builder(state_lock: impl StateLock + 'static) -> PlanBuilder {
         PlanBuilder {
             ctx_registry: CtxRegistry::new(),
@@ -234,13 +233,13 @@ impl Plan {
         }
     }
 
-    /// Returns a builder that will allow for configuring how the migration [`Plan`]
+    /// Returns a builder that will allow for configuring how migration [`Plan`]
     /// will be rendered via [`std::fmt::Display`] impl.
     pub fn display(&self) -> PlanDisplayBuilder<'_> {
         PlanDisplayBuilder { plan: self }
     }
 
-    /// Execute the migration plan by running the migration scripts.
+    /// Execute migration plan by running migration scripts.
     #[instrument(skip(self))]
     pub async fn exec(mut self, run_mode: MigrationRunMode) -> Result<(), PlanExecError> {
         let mut errors = vec![];
@@ -271,7 +270,7 @@ impl Plan {
     async fn try_exec(&mut self, run_mode: MigrationRunMode) -> Result<(), PlanExecErrorKind> {
         // FIXME: add a step for manual approval...
 
-        // FIXME: record the migration as `tainted` (this is concept taken from `terraform`) if it fails,
+        // FIXME: record migration as `tainted` (this is concept taken from `terraform`) if it fails,
         // or handle it somehow else?
 
         let mut ctx = DynMigrationScriptCtx {
@@ -327,11 +326,11 @@ impl Plan {
     }
 }
 
-/// Contains the configuration information to render the [`PlanBuilder`]
+/// Contains configuration information to render the [`PlanBuilder`]
 pub struct MigrationsDisplayBuilder<'a>(&'a PlanBuilder);
 
 impl MigrationsDisplayBuilder<'_> {
-    /// Finish configuring how the [`PlanBuilder`] should be rendered
+    /// Finish configuring how [`PlanBuilder`] should be rendered
     pub fn build(&self) -> impl '_ + fmt::Display {
         MigrationsDisplay(self)
     }
@@ -354,7 +353,7 @@ impl fmt::Display for MigrationsDisplay<'_> {
     }
 }
 
-/// Contains the configuration information to render the migration [`Plan`]
+/// Contains configuration information to render migration [`Plan`]
 pub struct PlanDisplayBuilder<'p> {
     plan: &'p Plan,
     // FIXME: add colors support
@@ -362,7 +361,7 @@ pub struct PlanDisplayBuilder<'p> {
 }
 
 impl PlanDisplayBuilder<'_> {
-    /// Finish configuring how the [`Plan`] should be rendered
+    /// Finish configuring how [`Plan`] should be rendered
     pub fn build(&self) -> impl '_ + fmt::Display {
         PlanDisplay(self)
     }

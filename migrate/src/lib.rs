@@ -3,11 +3,11 @@
 //! The CLI is provided with [`MigrateCli`] type that parses the command
 //! line arguments and orchestrates the execution of migrations.
 //!
-//! It servers as a CLI wrapper over [`migrate_core`] crate, which is the
+//! It serves as a CLI wrapper over [`migrate_core`] crate, which is the
 //! entrypoint for programmatic access of the API.
 //!
-//! The CLI should be fed the [`migrate_core::PlanBuilder`] with the migrations
-//! specific for particular use case and the CLI will only control what
+//! The [`migrate_core::PlanBuilder`] should be given to the CLI with
+//! use case specific migrations and the CLI will only control what
 //! migrations will be executed and in which mode.
 //!
 //! See [`MigrateCli::run()`] method and the [`examples/`][examples] folder
@@ -142,7 +142,7 @@ impl MigrateCli {
     ///         Ok(())
     ///     }
     ///     async fn down(&mut self, db_client: &mut Self::Ctx) -> Result<(), DynError> {
-    ///         // Execute revese database mutations to cancel the changes done in
+    ///         // Execute reverse database mutations to cancel the changes done in
     ///         // the `up()` method here, you have access to the database client
     ///         // here as well
     /// #       let _ = db_client;
@@ -165,7 +165,7 @@ impl MigrateCli {
     /// #   }
     /// }
     ///
-    /// // Setup or cli main function
+    /// // Main CLI setup function
     /// #[tokio::main]
     /// async fn main() -> Result<(), DynError> {
     /// #   loop {
@@ -191,7 +191,7 @@ impl MigrateCli {
     ///
     ///     plan
     ///         .ctx_provider(DbClientCtxProvider)
-    ///         // Add migrations in order one after each other to the plan
+    ///         // Add migrations in order one after another to the plan
     ///         .migration("initial-db-setup", InitialDbSetupMigration)
     ///         .migration("add-new-entity-to-db", AddNewEntityToDbMigration);
     ///

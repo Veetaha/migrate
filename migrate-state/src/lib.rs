@@ -25,7 +25,7 @@ pub type Result<T, E = Box<dyn Error + Send + Sync>> = std::result::Result<T, E>
 /// Client for the migration state storage.
 ///
 /// State storage is basically a [`Vec`]`<`[`u8`]`>`.
-/// The implementations of this trait should not make any assumptions about
+/// Implementations of this trait should not make any assumptions about
 /// the state shape (i.e. what the given [`Vec`]`<`[`u8`]`>` represents). The given
 /// bytes are not even guaranteed to be valid UTF8.
 #[async_trait]
@@ -36,29 +36,29 @@ pub trait StateClient {
     // too complicated for implementations to implement and we might help with
     // this somehow on our high-level end?
 
-    /// Return all the stored bytes in the storage.
+    /// Return all bytes stored in the storage.
     ///
-    /// If the storage wasn't yet initialized with `update()` call previously
-    /// then it should return `Ok(vec![])` (empty vector), otherwise the value
+    /// If the storage wasn't initialized yet with `update()` call previously
+    /// then it should return `Ok(vec![])` (empty vector), otherwise value
     /// stored with the most recent `update()` call should be returned
     async fn fetch(&mut self) -> Result<Vec<u8>>;
 
-    /// Puts the given bytes into the storage.
+    /// Puts given bytes into the storage.
     ///
     /// It shouldn't make any assumptions about what these bytes represent,
     /// there are no guarantees about the byte pattern `migrate` uses to
     /// store the serialized migration state representation.
     ///
     /// For the first ever call to [`update()`](Self::update) it should
-    /// initialize the storage with the given bytes, and if [`fetch()`](Self::fetch)
-    /// was called before the intialization hapenned, then [`fetch()`](Self::fetch)
+    /// initialize storage with the given bytes, and if [`fetch()`](Self::fetch)
+    /// was called before intialization hapenned, then [`fetch()`](Self::fetch)
     /// should return `Ok(None)`.
     async fn update(&mut self, state: Vec<u8>) -> Result<()>;
 }
 
-/// The lock over a migration state storage.
+/// Lock over a migration state storage.
 ///
-/// It guards the underlying migration state preventing concurrent access
+/// It guards underlying migration state preventing concurrent access
 /// from multiple threads and processes. Ideally, this should be a distributed
 /// lock implementation.
 ///
@@ -68,39 +68,39 @@ pub trait StateClient {
 pub trait StateLock {
     /// # General concept
     ///
-    /// Acquires the exclusive lock to the migration state.
+    /// Acquires exclusive lock to migration state.
     ///
-    /// Acquiring the exclusive lock means that no other subjects
+    /// Acquiring exclusive lock means that no other subjects
     /// (threads, current and other remote compute instance's processes)
-    /// can access the state. The future returned by this method should
-    /// be resolved only once the lock is unlocked (via [`StateGuard::unlock()`])
+    /// can access the state. Future returned by this method should
+    /// be resolved only after the lock is unlocked (via [`StateGuard::unlock()`])
     /// if it is currently locked, or resolve right away if no other subject is
     /// holding the lock.
     ///
     /// This means that if some other subject is already holding a lock,
-    /// we should wait for it to unlock it (by awaiting the returned future to resolve).
+    /// we should wait for it to unlock it (by awaiting returned future to resolve).
     ///
     /// The lock has to be held until a call to [`StateGuard::unlock()`] on
-    /// the returned [`StateGuard`] implementation.
+    /// returned [`StateGuard`] implementation.
     ///
-    /// The described behavior is expected when the `force` parameter is [`false`]
+    /// Described behavior is expected when the `force` parameter is [`false`]
     ///
     /// # Boolean `force` parameter
     ///
-    /// When the `force` boolean parameter is set to [`true`], the method must
-    /// acquire the exclusive lock even if it currently acquired by some other subject
-    /// and provide the access to the unrelying storage for the state regardless.
+    /// When the `force` boolean parameter is set to [`true`], method must
+    /// acquire exclusive lock even if it currently acquired by some other subject
+    /// and provide the access to underlying state storage regardless.
     ///
-    /// This operation is dangerous, because it bypasses the locking mechanism
+    /// This operation is dangerous, because it bypasses locking mechanism
     /// which may lead to concurrent state storage mutations.
-    /// It exists to help circumvent the situations where some subject has
+    /// It exists to help circumvent situations where some subject has
     /// died without unlocking the lock, thus leaving it locked potentially
     /// forver.
     async fn lock(self: Box<Self>, force: bool) -> Result<Box<dyn StateGuard>>;
 }
 
-/// Object returned from [`StateLock::lock()`] that while alive
-/// holds the lock on the state storage preventing concurrent access to it
+/// Object returned from [`StateLock::lock()`] that holds 
+/// state storage lock while alive, preventing concurrent access to it
 /// from multiple threads and processes.
 #[async_trait]
 pub trait StateGuard {
@@ -108,7 +108,7 @@ pub trait StateGuard {
     /// while this [`StateGuard`] hold the lock.
     fn client(&mut self) -> &mut dyn StateClient;
 
-    /// Unlocks the currently held migration state lock allowing for
+    /// Unlocks currently held migration state lock allowing for
     /// other subjects to acquire it with [`StateLock::lock()`] once again
     async fn unlock(self: Box<Self>) -> Result<()>;
 }
