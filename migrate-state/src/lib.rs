@@ -36,7 +36,7 @@ pub trait StateClient {
     // too complicated for implementations to implement and we might help with
     // this somehow on our high-level end?
 
-    /// Return the all the stored bytes in the storage.
+    /// Return all the stored bytes in the storage.
     ///
     /// If the storage wasn't yet initialized with `update()` call previously
     /// then it should return `Ok(vec![])` (empty vector), otherwise the value

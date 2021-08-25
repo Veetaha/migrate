@@ -4,6 +4,11 @@
 //!
 //! See [`DdbStateLock`] docs for more details.
 //!
+//! The following cargo features of the crate are exposed:
+//!
+//! - `native-tls` (enabled by default) - enables `native-tls` feature in dependent `rusoto` crates
+//! - `rustls` - enables `rustls` feature in dependent `rusoto` crates
+//!
 //! [dynamodb]: https://aws.amazon.com/dynamodb/
 
 #![warn(missing_docs, unreachable_pub, rust_2018_idioms)]

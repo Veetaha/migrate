@@ -1,9 +1,52 @@
 [`east`]: https://github.com/okv/east
+[migrate-core-master-docs]: https://veetaha.github.io/migrate/migrate_core/index.html
+
+[migrate-docs-rs]: https://docs.rs/migrate
+[migrate-docs-rs-badge]: https://docs.rs/migrate/badge.svg
+[migrate-crates-io]: https://crates.io/crates/migrate
+[migrate-crates-io-badge]: https://img.shields.io/crates/v/migrate.svg?logo=rust
+
+[migrate-core-docs-rs]: https://docs.rs/migrate-core
+[migrate-core-docs-rs-badge]: https://docs.rs/migrate-core/badge.svg
+[migrate-core-crates-io]: https://crates.io/crates/migrate-core
+[migrate-core-crates-io-badge]: https://img.shields.io/crates/v/migrate-core.svg?logo=rust
+
+[migrate-state-docs-rs]: https://docs.rs/migrate-state
+[migrate-state-docs-rs-badge]: https://docs.rs/migrate-state/badge.svg
+[migrate-state-crates-io]: https://crates.io/crates/migrate-state
+[migrate-state-crates-io-badge]: https://img.shields.io/crates/v/migrate-state.svg?logo=rust
+
+[migrate-state-dynamodb-docs-rs]: https://docs.rs/migrate-state-dynamodb
+[migrate-state-dynamodb-docs-rs-badge]: https://docs.rs/migrate-state-dynamodb/badge.svg
+[migrate-state-dynamodb-crates-io]: https://crates.io/crates/migrate-state-dynamodb
+[migrate-state-dynamodb-crates-io-badge]: https://img.shields.io/crates/v/migrate-state-dynamodb.svg?logo=rust
+
+
+[migrate-state-file-docs-rs]: https://docs.rs/migrate-state-file
+[migrate-state-file-docs-rs-badge]: https://docs.rs/migrate-state-file/badge.svg
+[migrate-state-file-crates-io]: https://crates.io/crates/migrate-state-file
+[migrate-state-file-crates-io-badge]: https://img.shields.io/crates/v/migrate-state-file.svg?logo=rust
+
+[migrate-state-test-docs-rs]: https://docs.rs/migrate-state-test
+[migrate-state-test-docs-rs-badge]: https://docs.rs/migrate-state-test/badge.svg
+[migrate-state-test-crates-io]: https://crates.io/crates/migrate-state-test
+[migrate-state-test-crates-io-badge]: https://img.shields.io/crates/v/migrate-state-test.svg?logo=rust
 
 # :warning: Warning
-The crate is in an early MVP stage of development.
-You may already use it and it will provide you with a good-enough subset of features,
-but for some advanced use cases (e.g. robust migration state locking) may not be covered.
+The crates are in an early MVP stage of development.
+You may already use them and they will provide you with a good-enough subset of features,
+but some advanced use cases may not be covered yet.
+
+Crate | docs.rs | crates.io
+--|--|--
+`migrate` | [![][migrate-docs-rs-badge]][migrate-docs-rs] | [![][migrate-crates-io-badge]][migrate-crates-io]
+`migrate-core` | [![][migrate-core-docs-rs-badge]][migrate-core-docs-rs] | [![][migrate-core-crates-io-badge]][migrate-core-crates-io]
+`migrate-state` | [![][migrate-state-docs-rs-badge]][migrate-state-docs-rs] | [![][migrate-state-crates-io-badge]][migrate-state-crates-io]
+`migrate-state-dynamodb` | [![][migrate-state-dynamodb-docs-rs-badge]][migrate-state-dynamodb-docs-rs] | [![][migrate-state-dynamodb-crates-io-badge]][migrate-state-dynamodb-crates-io]
+`migrate-state-file` | [![][migrate-state-file-docs-rs-badge]][migrate-state-file-docs-rs] | [![][migrate-state-file-crates-io-badge]][migrate-state-file-crates-io]
+`migrate-state-test` | [![][migrate-state-test-docs-rs-badge]][migrate-state-test-docs-rs] | [![][migrate-state-test-crates-io-badge]][migrate-state-test-crates-io]
+
+The documentation for the `master` branch is available [here][migrate-core-master-docs].
 
 # migrate
 
@@ -25,7 +68,6 @@ Example boilerplate
 
 ```rust
 use async_trait::async_trait;
-// See the list of ready-to-use contexts bellow, we are happy to expand it!
 use migrate::MigrateCli;
 use migrate::core::{Migration, Plan, MigrationCtxProvider};
 use std::error::Error;
@@ -35,6 +77,7 @@ use rusoto_dynamodb::DynamoDb;
 // This is called the migration state and there are several different backends
 // that implement it. You may also implement your own, e.g. store the migration
 // state in your own database.
+// See the list of ready-to-use state backends bellow.
 const MIGRATION_STATE_FILE_PATH: &str = "./migration-state";
 
 type Result<T, E = Box<dyn Error + Send + Sync>> = std::result::Result<T, E>;

@@ -1,9 +1,18 @@
 [package]
 name = "migrate-state-dynamodb"
 version = "0.1.0"
-authors = ["Veetaha <veetaha2@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+
+authors = ["Veetaha <veetaha2@gmail.com>"]
+homepage = "https://github.com/Veetaha/migrate"
+repository = "https://github.com/Veetaha/migrate"
+keywords = ["migration", "migrate", "database"]
+categories = ["development-tools"]
+readme = "../README.md"
+description = """
+    Migrations state storage implementation that uses AWS DynamoDB database as a backend
+"""
 
 [features]
 default = ["native-tls"]
