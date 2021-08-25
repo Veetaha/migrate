@@ -99,7 +99,7 @@ pub trait StateLock {
     async fn lock(self: Box<Self>, force: bool) -> Result<Box<dyn StateGuard>>;
 }
 
-/// Object returned from [`StateLock::lock()`] that holds 
+/// Object returned from [`StateLock::lock()`] that holds
 /// state storage lock while alive, preventing concurrent access to it
 /// from multiple threads and processes.
 #[async_trait]
